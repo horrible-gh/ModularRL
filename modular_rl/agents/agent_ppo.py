@@ -9,31 +9,41 @@ import numpy as np
 
 class AgentPPO:
     def __init__(self, env, setting):
-        # 환경 준비
+
+        # Environment preparation
         self.env = env if env else gym.make('CartPole-v0')
         self.setting = setting
         self.state_dim = self.env.observation_space.shape[0]
         self.action_dim = self.env.action_space.n
 
-        # 신경망 인스턴스 및 옵티마이저 생성
+        # Create neural network instances and optimizer
         self.policy_net = PolicyNetwork(self.state_dim, self.action_dim,setting.get('networks', 'middle'))
         self.value_net = ValueNetwork(self.state_dim,setting.get('networks', 'middle'))
         self.policy_optimizer = optim.Adam(self.policy_net.parameters(), lr=setting.get('optimizer_speed', 3e-4))
         self.value_optimizer = optim.Adam(self.value_net.parameters(), lr=setting.get('optimizer_speed', 3e-4))
 
-        # 학습 파라미터 설정
+        # Set learning parameters
         self.max_episodes = setting.get('max_episodes', 30)
         self.max_timesteps = setting.get('max_timesteps',200)
-        self.update_timestep = setting.get('update_timestep',200)
+        self.update_timestep = setting.get('update_timestep',2000)
         self.ppo_epochs = setting.get('ppo_epochs',4)
         self.mini_batch_size = setting.get('mini_batch_size',64)
         self.gamma = setting.get('gamma',0.99)
         self.lam = setting.get('lam',0.95)
         self.clip_param = setting.get('clip_param',0.2)
+        self.early_stop_threshold = setting.get('early_stop_threshold', -1)
+        self.done_loop_end = setting.get('done_loop_end', False)
 
         self.state = None
 
-    # PPO 알고리즘 구현
+        # Set learning episode parameters        
+        self.episode_reward = 0
+        self.total_reward = 0
+        self.prev_reward = 0
+        self.episode = 0
+        self.avg_reward = 0
+
+    # Implement PPO algorithm
     def compute_advantages(self, rewards, values, done, gamma=0.99, lam=0.95):
         advantages = np.zeros_like(rewards)
         last_advantage = 0
@@ -66,14 +76,12 @@ class AgentPPO:
                 self.value_optimizer.step()
 
     def learn_step(self, state, timestep):
-        # 기존 학습 코드를 이 함수에 넣고 필요한 부분만 수정합니다.
 
         state_num = len(state)
         if state_num==1:
             state = state  # Unpack the tuple
         elif state_num==2:
             state, _ = state  # Unpack the tuple
-
         state_tensor = torch.tensor(state, dtype=torch.float32)
         dist = Categorical(self.policy_net(state_tensor))
         action = dist.sample()
@@ -94,12 +102,15 @@ class AgentPPO:
         self.log_probs.append(dist.log_prob(action))
 
         self.state = next_state
-        self.total_reward += reward
+
+
         if timestep > 0:
             timestep += 1
 
         if self.update_timestep > 0 and timestep > 0 and (timestep % self.update_timestep == 0):
             self.update()
+        
+        return reward, is_done
 
     def update(self):
         states_tensor = torch.tensor(np.array(self.states, dtype=np.float32))
@@ -120,24 +131,44 @@ class AgentPPO:
         self.ppo_update(self.ppo_epochs, self.mini_batch_size, states_tensor, actions_tensor, log_probs_tensor, returns, advantages_tensor)
 
         self.reset()
+        
+        self.episode += 1
+        self.episode_reward = 0
 
     def learn(self):
-        # 학습 루프
         timestep = 0
-        rewards_sum = 0
         test = 0
-        if self.max_episodes > 0 and self.max_timesteps > 0:
-            for episode in range(self.max_episodes):
-                state = self.env.reset()
-                self.total_reward = 0
+        self.total_reward = 0
+        self.episode_reward = 0
 
+        if self.max_episodes > 0 and self.max_timesteps > 0:
+            is_done = False
+            for episode in range(self.max_episodes):
+                #self.learn_reset()
+                state = self.env.reset()
                 self.reset()
 
                 for t in range(self.max_timesteps):
-                    self.learn_step(state, timestep)
+                    reward, is_done = self.learn_step(state, timestep)
+                    self.episode_reward += reward
+                    if is_done:
+                        break
+                    
+                self.total_reward += self.episode_reward
 
-                rewards_sum += self.total_reward
-                print(f'Episode: {episode}, Total Reward: {self.total_reward}, {rewards_sum}')
+                avg_reward = self.total_reward / (episode + 1)
+                print(
+                    f'Episode: {episode}, Episode Reward: {self.episode_reward}, Total Reward: {self.total_reward}, Average Reward: {avg_reward}')
+
+                if avg_reward >= self.early_stop_threshold  > 0:
+                    print(
+                        f'Early stopping: Average reward has reached the threshold ({self.early_stop_threshold}) at episode {episode}')
+                    break
+                if is_done and self.done_loop_end:
+                    break
+                
+                if episode +1  >= self.max_episodes:
+                    break
 
             self.env.close()
         else:
@@ -153,16 +184,24 @@ class AgentPPO:
 
     def learn_reset(self):
         self.state = self.env.reset()
-        self.total_reward = 0
+        self.episode_reward = 0
 
     def learn_next(self):
-        self.learn_step(self.state, -1)
+        reward, _ = self.learn_step(self.state, -1)
+        self.episode_reward += reward
+        self.total_reward += reward
+        self.prev_reward = reward
 
     def learn_close(self) :
         self.env.close()
+        self.total_reward = 0
+        self.episode = 0
+        self.episode_reward = 0
 
     def learn_check(self):
-        print(f'Total Reward: {self.total_reward}')
+        avg_reward = self.total_reward / (self.episode + 1)
+        print(
+            f'Episode: {self.episode}, Previous Reward: {self.prev_reward},  Episode Reward: {self.episode_reward}, Total Reward: {self.total_reward}, Average Episode Reward: {avg_reward}')
 
     def save(self, file_name):
         torch.save({

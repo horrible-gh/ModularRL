@@ -9,11 +9,13 @@ class AgentSettings:
         'optimizer_speed':3e-4,
         'gamma': 0.99,
         'lam':0.95,
-        'clip_param':0.2
+        'clip_param':0.2,
+        'early_stop_threshold': -1,
+        'done_loop_end':False,
     }
 
     default_modular = {
-        'max_episodes': 30,
+        'max_episodes': -1,
         'max_timesteps' : -1,
         'update_timestep' : -1,
         'ppo_epochs' : 4,
@@ -22,5 +24,6 @@ class AgentSettings:
         'optimizer_speed':3e-4,
         'gamma': 0.99,
         'lam':0.95,
-        'clip_param':0.2
+        'clip_param':0.2,
+        'early_stop_threshold': -1, 
     }
