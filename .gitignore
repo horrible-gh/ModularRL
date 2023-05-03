@@ -1,4 +1,14 @@
 # ---> Python
+# Custom
+__pycache__
+_old
+_org
+.vscode
+test
+work
+test.pth
+data
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
