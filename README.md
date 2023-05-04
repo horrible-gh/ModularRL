@@ -63,9 +63,9 @@ def init_modular():
 
     '''
     Note: 
-    Please implement the state result of update_step in the step function of Env.
+    Please implement the resulting state of update_step in the step function of your environment.
     
-    example)
+    For example:
 
     def step(self, action):
         ...
@@ -79,8 +79,8 @@ def init_modular():
 
     env.learn_close()
 
-
 init_modular()
+
 ```
 
 ## Key Classes
