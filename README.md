@@ -60,16 +60,18 @@ def init_modular():
     # Proceed with the learning manually.
     '''
     Note: 
-    After the action when calling update_step, 
-    enter the changed state in the initial_state location
-    example, 
-    env.update_step(after_action_state, None, action, -1)
+    Please implement the state result of update_step in the step function of Env.
+    
+    example)
+
+    def step(self, action):
+        ...
+        return next_state, reward, is_done, _ 
     '''
 
     initial_state = env.learn_reset()
     action, _ = env.select_action(initial_state)
-    next_state = env.learn_reset()
-    env.update_step(next_state, None, action, -1)
+    env.update_step(initial_state, None, action, -1)
 
     env.learn_check()
     env.update()
