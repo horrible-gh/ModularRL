@@ -76,4 +76,3 @@ init_modular()
 
 ## License
 MIT License
->>>>>>> master
