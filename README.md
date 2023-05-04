@@ -56,7 +56,12 @@ def init_modular():
 
     env.reset()
     env.learn_reset()
-    action, reward, is_done = env.learn_next()
+
+    # Proceed with the learning manually.
+    initial_state = env.learn_reset()
+    action, dist = env.select_action(initial_state)
+    env.update_step(initial_state, dist, action, -1)
+
     env.learn_check()
     env.update()
 
