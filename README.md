@@ -47,6 +47,7 @@ from modular_rl.agents.agent_ppo import AgentPPO
 from modular_rl.settings import AgentSettings
 
 def init_modular():
+    # Semi-automatic (defined record usage)
     env = AgentPPO(env=None, setting=AgentSettings.default_modular)
     env.reset()
     env.learn_reset()
@@ -54,10 +55,12 @@ def init_modular():
     env.learn_check()
     env.update()
 
+    # Proceed with the learning manually.
     env.reset()
     env.learn_reset()
+    initial_state = env.learn_reset()
+    action, _ = env.select_action(initial_state)
 
-    # Proceed with the learning manually.
     '''
     Note: 
     Please implement the state result of update_step in the step function of Env.
@@ -69,10 +72,8 @@ def init_modular():
         return next_state, reward, is_done, _ 
     '''
 
-    initial_state = env.learn_reset()
-    action, _ = env.select_action(initial_state)
     env.update_step(initial_state, None, action, -1)
-
+    
     env.learn_check()
     env.update()
 
