@@ -29,6 +29,7 @@ class AgentSettings:
         # If the average reward is greater than or equal to this value, training is stopped early
         'early_stop_threshold': -1,
         'done_loop_end': False,  # If True, end the episode when the done flag is set
+        'reward_print': True,
     }
 
     default_modular = {
@@ -47,4 +48,5 @@ class AgentSettings:
         'clip_param': 0.2,  # Clipping parameter for PPO
         # If the average reward is greater than or equal to this value, training is stopped early
         'early_stop_threshold': -1,
+        'reward_print': True,
     }

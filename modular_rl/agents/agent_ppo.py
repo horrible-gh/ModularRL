@@ -63,6 +63,7 @@ class AgentPPO:
         self.clip_param = setting.get('clip_param', 0.2)
         self.early_stop_threshold = setting.get('early_stop_threshold', -1)
         self.done_loop_end = setting.get('done_loop_end', False)
+        self.reward_print = setting.get('reward_print', True)
 
         self.state = None
 
@@ -164,16 +165,17 @@ class AgentPPO:
                 value_loss.backward()
                 self.value_optimizer.step()
 
-    def predict_action(self, state):
+    def select_action(self, state):
         """
-        Predicts an action based on the given state and the current policy.
+        Selects an action based on the given state and the current policy.
 
-        :param state: The state to use for predicting an action.
+        :param state: The state to use for selecting an action.
         :type state: numpy.ndarray
-        :return: The predicted action and its corresponding probability distribution.
+        :return: The selected action and its corresponding probability distribution.
         :rtype: tuple(torch.Tensor, torch.distributions.Categorical)
         """
 
+        state = self._check_state(self.state)
         state_tensor = torch.tensor(state, dtype=torch.float32)
         with torch.no_grad():
             action_probs = self.policy_net(state_tensor)
@@ -193,15 +195,27 @@ class AgentPPO:
         :rtype: tuple(torch.Tensor, float, bool)
         """
 
-        state_num = len(state)
-        if state_num == 1:
-            state = state  # Unpack the tuple
-        elif state_num == 2:
-            state, _ = state  # Unpack the tuple
-        # state_tensor = torch.tensor(state, dtype=torch.float32)
-        action, dist = self.predict_action(state)
-        # dist = Categorical(self.policy_net(state_tensor))
-        # action = dist.sample()
+        action, dist = self.select_action(state)
+
+        return self.update_step(state, dist, action, timestep)
+
+    def update_step(self, state, dist, action, timestep):
+        """
+        Takes a step in the environment with a given action and updates the PPO algorithm with the resulting state, reward, and action.
+
+        :param state: The current state of the environment.
+        :type state: numpy.ndarray
+        :param dist: The corresponding probability distribution.
+        :type dist: torch.distributions.Categorical
+        :param action: The action taken by the agent.
+        :type action: int
+        :param reaction: The reaction of the opponent after the agent's action.
+        :type reaction: tuple
+        :param timestep: The current timestep of the training process.
+        :type timestep: int
+        :return: The resulting reward and whether the episode is done or not.
+        :rtype: tuple(float, bool)
+        """
 
         step_output = self.env.step(action.item())
         step_output_num = len(step_output)
@@ -210,6 +224,12 @@ class AgentPPO:
             next_state, reward, is_done, _ = self.env.step(action.item())
         elif step_output_num == 5:
             next_state, reward, is_done, _, _ = self.env.step(action.item())
+
+        self.episode_reward += reward
+        self.total_reward += reward
+        self.prev_reward = reward
+
+        state = self._check_state(state)
 
         self.states.append(state)
         self.actions.append(action)
@@ -232,7 +252,6 @@ class AgentPPO:
         """
         Perform an update of the PPO algorithm, using the stored information about the environment from the previous learning iterations.
         """
-
         states_tensor = torch.tensor(np.array(self.states, dtype=np.float32))
         actions_tensor = torch.tensor(np.array(self.actions))
         rewards_tensor = torch.tensor(np.array(self.rewards, dtype=np.float32))
@@ -278,19 +297,20 @@ class AgentPPO:
 
                 for t in range(self.max_timesteps):
                     _, reward, is_done = self.learn_step(self.state, timestep)
-                    self.episode_reward += reward
                     if is_done:
                         break
 
                 self.total_reward += self.episode_reward
 
                 avg_reward = self.total_reward / (episode + 1)
-                print(
-                    f'Episode: {episode}, Episode Reward: {self.episode_reward}, Total Reward: {self.total_reward}, Average Reward: {avg_reward}')
+                if self.reward_print:
+                    print(
+                        f'Episode: {episode}, Episode Reward: {self.episode_reward}, Total Reward: {self.total_reward}, Average Reward: {avg_reward}')
 
                 if avg_reward >= self.early_stop_threshold > 0:
-                    print(
-                        f'Early stopping: Average reward has reached the threshold ({self.early_stop_threshold}) at episode {episode}')
+                    if self.reward_print:
+                        print(
+                            f'Early stopping: Average reward has reached the threshold ({self.early_stop_threshold}) at episode {episode}')
                     break
                 if is_done and self.done_loop_end:
                     break
@@ -320,7 +340,8 @@ class AgentPPO:
         """
 
         self.state = self.env.reset()
-        self.episode_reward = 0
+
+        return self._check_state(self.state)
 
     def learn_next(self):
         """
@@ -331,9 +352,6 @@ class AgentPPO:
         """
 
         action, reward, is_done = self.learn_step(self.state, -1)
-        self.episode_reward += reward
-        self.total_reward += reward
-        self.prev_reward = reward
 
         return action, reward, is_done
 
@@ -353,8 +371,15 @@ class AgentPPO:
         """
 
         avg_reward = self.total_reward / (self.episode + 1)
-        print(
-            f'Episode: {self.episode}, Previous Reward: {self.prev_reward},  Episode Reward: {self.episode_reward}, Total Reward: {self.total_reward}, Average Episode Reward: {avg_reward}')
+        if self.reward_print:
+            print(
+                f'Episode: {self.episode}, Previous Reward: {self.prev_reward},  Episode Reward: {self.episode_reward}, Total Reward: {self.total_reward}, Average Episode Reward: {avg_reward}')
+
+    def _check_state(self, state):
+        state_num = len(state)
+        if state_num == 2:
+            state, _ = state  # Unpack the tuple
+        return state
 
     def save(self, file_name):
         """
