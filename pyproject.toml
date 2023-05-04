@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "modular_rl"
-version = "0.1.3"
+version = "0.1.3a"
 authors = [
   { name="horrible", email="shinjpn1@gmail.com" },
 ]

@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='modular_rl',
-    version='0.1.3',
+    version='0.1.3a',
     description='ModularRL package',
     author='sjm',
     author_email='shinjpn1@gmail.com',

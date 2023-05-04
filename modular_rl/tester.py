@@ -69,4 +69,5 @@ def init_modular():
 def manual_step(env):
     initial_state = env.learn_reset()
     action, _ = env.select_action(initial_state)
-    env.update_step(initial_state, None, action, -1)
+    next_state = env.learn_reset()
+    env.update_step(next_state, None, action, -1)
