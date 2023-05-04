@@ -58,9 +58,17 @@ def init_modular():
     env.learn_reset()
 
     # Proceed with the learning manually.
+    '''
+    Note: 
+    After the action when calling update_step, 
+    enter the changed state in the initial_state location
+    example, 
+    env.update_step(after_action_state, None, action, -1)
+    '''
+
     initial_state = env.learn_reset()
-    action, dist = env.select_action(initial_state)
-    env.update_step(initial_state, dist, action, -1)
+    action, _ = env.select_action(initial_state)
+    env.update_step(initial_state, None, action, -1)
 
     env.learn_check()
     env.update()

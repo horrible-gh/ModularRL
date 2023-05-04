@@ -65,14 +65,16 @@ class AgentPPO:
         self.done_loop_end = setting.get('done_loop_end', False)
         self.reward_print = setting.get('reward_print', True)
 
-        self.state = None
-
-        # Set learning episode parameters
+        # Set learn episode parameters
         self.episode_reward = 0
         self.total_reward = 0
         self.prev_reward = 0
         self.episode = 0
         self.avg_reward = 0
+
+        # Set learn modular parameters
+        self.state = None
+        self.dist = None
 
     # Implement PPO algorithm
     def compute_advantages(self, rewards, values, done, gamma=0.99, lam=0.95):
@@ -180,6 +182,7 @@ class AgentPPO:
         with torch.no_grad():
             action_probs = self.policy_net(state_tensor)
         dist = Categorical(action_probs)
+        self.dist = dist
         action = dist.sample()
         return action, dist
 
@@ -216,6 +219,9 @@ class AgentPPO:
         :return: The resulting reward and whether the episode is done or not.
         :rtype: tuple(float, bool)
         """
+
+        if dist == None and self.dist:
+            dist = self.dist
 
         step_output = self.env.step(action.item())
         step_output_num = len(step_output)
