@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "modular_rl"
+version = "0.1.0.dev"
+authors = [
+  { name="horrible", email="shinjpn1@gmail.com" },
+]
+description = "ModularRL is a Python library for creating and training reinforcement learning agents using the Proximal Policy Optimization (PPO) algorithm. The library is designed to be easily customizable and modular, allowing users to quickly set up and train PPO agents for various environments."
+readme = "README.md"
+requires-python = ">=3.7"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    'Programming Language :: Python :: 3',
+    'Programming Language :: Python :: 3.6',
+    'Programming Language :: Python :: 3.7',
+    'Programming Language :: Python :: 3.8',
+    'Programming Language :: Python :: 3.9',
+    'Programming Language :: Python :: 3.10',
+    'Programming Language :: Python :: 3.11',
+]
+keywords=['ModularRL', 'Modular-RL', 'Modular_RL', 'Modular RL',  'modularrl',  'modular_rl', 'modular-rl', 'modular rl', 'mrl', 'modular', 'learn', 'learning', 'pytorch learn', 'pytorch learning']
+dependencies=['gym', 'numpy', 'torch']
+
+
+[project.urls]
+"Homepage" = "https://github.com/horrible-gh/ModularRL"
+"Bug Tracker" = "https://github.com/horrible-gh/ModularRL/issues"
