@@ -48,6 +48,7 @@ from modular_rl.settings import AgentSettings
 
 def init_modular():
     # Semi-automatic (defined record usage)
+    # Implement your environment and pass it to 'env' parameter.
     env = AgentPPO(env=None, setting=AgentSettings.default_modular)
     env.reset()
     env.learn_reset()
@@ -57,6 +58,12 @@ def init_modular():
 
     # Proceed with the learning manually.
     env.reset()
+    # Implement the 'reset' method in your environment.
+    '''
+    def reset(self):
+        ...
+        return initial_state
+    '''
     env.learn_reset()
     initial_state = env.learn_reset()
     action, _ = env.select_action(initial_state)
@@ -80,7 +87,6 @@ def init_modular():
     env.learn_close()
 
 init_modular()
-
 ```
 
 ## Key Classes
