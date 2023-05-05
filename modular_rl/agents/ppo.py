@@ -19,7 +19,8 @@ PyTorch  (BSD-Style License): https://pytorch.org/ - Copyright (c) Facebook.
 """
 
 import gym
-from modular_rl.networks import PolicyNetwork, ValueNetwork
+from modular_rl.networks.policy import PolicyNetwork
+from modular_rl.networks.value import ValueNetwork
 import torch.optim as optim
 import torch
 from torch.distributions import Categorical
