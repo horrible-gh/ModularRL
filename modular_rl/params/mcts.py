@@ -1,11 +1,11 @@
 class ParamMCTS:
     default = {
-        'max_episodes': 30,  # Maximum number of episodes for training
+        'max_episodes': 10,  # Maximum number of episodes for training
         'max_timesteps': 200,  # Maximum number of timesteps for each episode
         'update_timestep': 2000,  # Update the policy every specified timestep
         'networks': 'medium',  # Size of the hidden layer in neural networks
         'optimizer_speed': 3e-4,  # Learning rate for the optimizer
-        'num_simulations': 800,
+        'num_simulations': 10,
         'cpuct': 1.0,
         'temperature': 1.0,
         'gamma': 0.99,  # Discount factor

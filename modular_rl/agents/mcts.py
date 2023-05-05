@@ -1,22 +1,46 @@
 
+# -*- coding: utf-8 -*-
+"""
+ModularRL project
+
+Copyright (c) 2023 horrible-gh
+
+Class AgentMCTS is an implementation of the Monte Carlo Tree Search (MCTS) algorithm. 
+It takes an environment and a setting configuration as inputs, initializes neural network instances and optimizers, 
+and sets various learning parameters. 
+It has methods to predict an action given a state, perform a learning step, update the neural network parameters, 
+save and load a checkpoint, and reset learning parameters. 
+The class also has instance variables to keep track of episode and total rewards, previous reward, and average reward.
+
+This software includes the following third-party libraries:
+Gym (MIT License): https://github.com/openai/gym - Copyright (c) OpenAI.
+NumPy (BSD License): https://numpy.org - Copyright (c) NumPy Developers.
+PyTorch  (BSD-Style License): https://pytorch.org/ - Copyright (c) Facebook.
+"""
+
 import gym
-import numpy as np
 import torch
 import torch.optim as optim
 from torch.distributions import Categorical
 import torch.nn.functional as F
 from modular_rl.networks.actor_critic import ActorCriticNetwork
 from modular_rl.util.node import Node
+from modular_rl.agents._agent import Agent
 from LogAssist.log import Logger
 
 
-class AgentMCTS:
+class AgentMCTS(Agent):
     def __init__(self, env, setting):
-        # Environment
-        self.env = env
-        self.setting = setting
-        self.state_dim = self.env.observation_space.shape[0]
-        self.action_dim = self.env.action_space.n
+        """
+        Initialize the AgentMCTS class with the specified environment and settings.
+
+        :param env: The environment to use for training.
+        :type env: gym.Env or None
+        :param setting: The settings for the MCTS algorithm.
+        :type setting: AgentSettings
+        """
+
+        super().__init__(env, setting)
 
         # Neural Network
         self.network = ActorCriticNetwork(self.state_dim, self.action_dim)
@@ -27,24 +51,14 @@ class AgentMCTS:
         self.num_simulations = setting.get('num_simulations', 800)
         self.cpuct = setting.get('cpuct', 1.0)
         self.temperature = setting.get('temperature', 1.0)
-        self.gamma = setting.get('gamma', 0.99)
-
-        # Training parameters
-        self.max_episodes = setting.get('max_episodes', 1000)
-        self.max_timesteps = setting.get('max_timesteps', 1000)
 
         self.device = setting.get('device', None)
         if self.device == None:
             self.device = torch.device(
                 "cuda" if torch.cuda.is_available() else "cpu")
 
-        # Episode parameters
-        self.total_reward = 0
-        self.episode = 0
-
-        # Logger initialize
-        self.log_level = setting.get('log_level', 'debug')
-        Logger.init(self.log_level, None, None, None, True, False)
+        # Save selected learning data separately
+        # self.state_tensor
 
     def select_action(self, state):
         """
@@ -55,8 +69,8 @@ class AgentMCTS:
         :return: The selected action.
         :rtype: int
         """
-        state = self._check_state(state)
-        state_tensor = torch.FloatTensor(state)
+
+        state_tensor = self.check_tensor(self._check_state(state))
         action_probs, _ = self.network(state_tensor)
         action_probs = action_probs.detach().numpy().flatten()
         root = Node(state, action_probs)
@@ -117,6 +131,16 @@ class AgentMCTS:
         chosen_action_state = root.children[chosen_action].state
         # Assuming that a non-zero reward indicates a terminal state
         done = (chosen_action_reward != 0)
+
+        # Save selected learning data separately
+        self.state = chosen_action_state
+        self.action = chosen_action
+        self.reward = chosen_action_reward
+        self.done = done
+
+        self.total_reward += reward
+        self.prev_reward = reward
+
         return chosen_action_state, chosen_action, chosen_action_reward, done
 
     def backpropagate(self, search_path, reward, done):
@@ -142,48 +166,28 @@ class AgentMCTS:
         """
         self.total_reward = 0
         for episode in range(self.max_episodes):
-            state = self.env.reset()
+            self.episode = episode
+            state = self.learn_reset()
+            # state = self.env.reset()
 
             for t in range(self.max_timesteps):
                 state = self._check_state(state)
-                state_tensor = torch.FloatTensor(state).squeeze(0)
-                next_state, action, reward, done = self.select_action(
-                    state_tensor)
+                self.state_tensor = self.check_tensor(state).squeeze(0)
+                self.next_state, self.action, self.reward, self.done = self.select_action(
+                    self.state_tensor)
 
-                # step_output = self.env.step(action.item())
-                # step_output_num = len(step_output)
-#
-                # if step_output_num == 4:
-                #    next_state, reward, done, _ = step_output
-                # elif step_output_num == 5:
-                #    next_state, reward, done, _, _ = step_output
+                self.learn_check()
 
-                self.total_reward += reward
-                Logger.debug(
-                    'agents:mcts:train', f"Episode: {self.episode}, Reward: {reward},  Total Reward: {self.total_reward}")
-
-                if done:
+                if self.done:
+                    # self.update()
                     break
 
-                # Update the network
-                self.optimizer.zero_grad()
-                actor_loss, critic_loss = self.compute_loss(
-                    state_tensor, action, reward, next_state, done)
-                loss = actor_loss + critic_loss
-                loss.backward()
-                self.optimizer.step()
+                self.update()
 
-                state = next_state
+                state = self.next_state
 
             self.episode += 1
             # print(f"Episode: {self.episode}, Reward: {self.total_reward}")
-
-    def _check_state(self, state):
-        Logger.verb('agents:mcts:_check_state', state)
-        state_num = len(state)
-        if state_num == 2:
-            state, _ = state  # Unpack the tuple
-        return state
 
     def compute_loss(self, state, action, reward, next_state, done):
         # Predict action probabilities and values
@@ -196,7 +200,23 @@ class AgentMCTS:
 
         # Compute the policy loss
         m = Categorical(action_probs)
-        logprobs = m.log_prob(action)
+        logprobs = m.log_prob(self.check_tensor(action))
         actor_loss = -logprobs * (target_values - values).detach()
 
         return actor_loss, critic_loss
+
+    def update(self):
+        # Update the network
+        self.optimizer.zero_grad()
+        actor_loss, critic_loss = self.compute_loss(
+            self.state_tensor, self.action, self.reward, self.next_state, self.done)
+        loss = actor_loss + critic_loss
+        loss.backward()
+        self.optimizer.step()
+
+    def check_tensor(self, obj):
+        if not torch.is_tensor(obj):
+            obj_tensor = torch.FloatTensor(obj)
+        else:
+            obj_tensor = obj
+        return obj_tensor

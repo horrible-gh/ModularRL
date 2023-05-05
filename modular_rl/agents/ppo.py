@@ -3,7 +3,7 @@
 """
 ModularRL project
 
-Copyright (c) 2023 horrible
+Copyright (c) 2023 horrible-gh
 
 Class AgentPPO is an implementation of the Proximal Policy Optimization (PPO) algorithm. 
 It takes an environment and a setting configuration as inputs, initializes neural network instances and optimizers, 
@@ -18,16 +18,17 @@ NumPy (BSD License): https://numpy.org - Copyright (c) NumPy Developers.
 PyTorch  (BSD-Style License): https://pytorch.org/ - Copyright (c) Facebook.
 """
 
-import gym
-from modular_rl.networks.policy import PolicyNetwork
-from modular_rl.networks.value import ValueNetwork
-import torch.optim as optim
 import torch
+import torch.optim as optim
 from torch.distributions import Categorical
 import numpy as np
+from modular_rl.networks.policy import PolicyNetwork
+from modular_rl.networks.value import ValueNetwork
+from modular_rl.agents._agent import Agent
+from LogAssist.log import Logger
 
 
-class AgentPPO:
+class AgentPPO(Agent):
     def __init__(self, env, setting):
         """
         Initialize the AgentPPO class with the specified environment and settings.
@@ -37,11 +38,8 @@ class AgentPPO:
         :param setting: The settings for the PPO algorithm.
         :type setting: AgentSettings
         """
-        # Environment preparation
-        self.env = env if env else gym.make('CartPole-v0')
-        self.setting = setting
-        self.state_dim = self.env.observation_space.shape[0]
-        self.action_dim = self.env.action_space.n
+
+        super().__init__(env, setting)
 
         # Create neural network instances and optimizer
         self.policy_net = PolicyNetwork(
@@ -54,30 +52,17 @@ class AgentPPO:
             self.value_net.parameters(), lr=setting.get('optimizer_speed', 3e-4))
 
         # Set learning parameters
-        self.max_episodes = setting.get('max_episodes', 30)
-        self.max_timesteps = setting.get('max_timesteps', 200)
-        self.update_timestep = setting.get('update_timestep', 2000)
         self.ppo_epochs = setting.get('ppo_epochs', 4)
         self.mini_batch_size = setting.get('mini_batch_size', 64)
-        self.gamma = setting.get('gamma', 0.99)
         self.lam = setting.get('lam', 0.95)
         self.clip_param = setting.get('clip_param', 0.2)
-        self.early_stop_threshold = setting.get('early_stop_threshold', -1)
-        self.done_loop_end = setting.get('done_loop_end', False)
-        self.reward_print = setting.get('reward_print', True)
-
-        # Set learn episode parameters
-        self.episode_reward = 0
-        self.total_reward = 0
-        self.prev_reward = 0
-        self.episode = 0
-        self.avg_reward = 0
 
         # Set learn modular parameters
         self.state = None
         self.dist = None
 
     # Implement PPO algorithm
+
     def compute_advantages(self, rewards, values, done, gamma=0.99, lam=0.95):
         """
         Compute advantages given the rewards, values, done flags, and discount factors.
@@ -293,13 +278,14 @@ class AgentPPO:
         timestep = 0
         test = 0
         self.total_reward = 0
-        self.episode_reward = 0
 
         if self.max_episodes > 0 and self.max_timesteps > 0:
             is_done = False
             for episode in range(self.max_episodes):
+                self.episode = episode
                 self.reset()
                 self.learn_reset()
+                self.episode_reward = 0
                 reward = 0
 
                 for t in range(self.max_timesteps):
@@ -307,22 +293,17 @@ class AgentPPO:
                     if is_done:
                         break
 
-                self.total_reward += self.episode_reward
-
-                avg_reward = self.total_reward / (episode + 1)
-                if self.reward_print:
-                    print(
-                        f'Episode: {episode}, Episode Reward: {self.episode_reward}, Total Reward: {self.total_reward}, Average Reward: {avg_reward}')
+                self.learn_check()
+                avg_reward = self.total_reward / (self.episode + 1)
 
                 if avg_reward >= self.early_stop_threshold > 0:
-                    if self.reward_print:
-                        print(
-                            f'Early stopping: Average reward has reached the threshold ({self.early_stop_threshold}) at episode {episode}')
+                    Logger.info(
+                        f'Early stopping: Average reward has reached the threshold ({self.early_stop_threshold}) at episode {self.episode}')
                     break
                 if is_done and self.done_loop_end:
                     break
 
-                if episode + 1 >= self.max_episodes:
+                if self.episode + 1 >= self.max_episodes:
                     break
 
             self.env.close()
@@ -346,9 +327,7 @@ class AgentPPO:
         Reset the agent's state and episode reward.
         """
 
-        self.state = self.env.reset()
-
-        return self._check_state(self.state)
+        return super().learn_reset()
 
     def learn_next(self):
         """
@@ -367,20 +346,14 @@ class AgentPPO:
         Close the environment and reset the agent's total reward, episode count, and episode reward.
         """
 
-        self.env.close()
-        self.total_reward = 0
-        self.episode = 0
-        self.episode_reward = 0
+        super().learn_close()
 
     def learn_check(self):
         """
         Print the episode count, previous reward, episode reward, total reward, and average episode reward.
         """
 
-        avg_reward = self.total_reward / (self.episode + 1)
-        if self.reward_print:
-            print(
-                f'Episode: {self.episode}, Previous Reward: {self.prev_reward},  Episode Reward: {self.episode_reward}, Total Reward: {self.total_reward}, Average Episode Reward: {avg_reward}')
+        super().learn_check()
 
     def _check_state(self, state):
         state_num = len(state)

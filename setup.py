@@ -25,5 +25,6 @@ setup(
         'numpy>=1.18.0',
         'torch>=1.24.2',
         'gym>=0.23.0',
+        'LogAssist>=1.0.4'
     ],
 )
