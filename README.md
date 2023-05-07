@@ -108,7 +108,7 @@ def init_modular():
 init_modular()
 ```
 
-# Saving and Loading Models
+## Saving and Loading Models
 
 Agents can save and load their models using the save_model(file_name) and load_model(file_name) methods.
 The file_name parameter should be the name of the file to save or load the model to/from.
