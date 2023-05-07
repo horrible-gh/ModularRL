@@ -204,9 +204,9 @@ class AgentPPO(Agent):
         step_output_num = len(step_output)
 
         if step_output_num == 4:
-            next_state, reward, is_done, _ = self.env.step(action.item())
+            next_state, reward, is_done, _ = step_output
         elif step_output_num == 5:
-            next_state, reward, is_done, _, _ = self.env.step(action.item())
+            next_state, reward, is_done, _, _ = step_output
 
         self.episode_reward += reward
         self.total_reward += reward
