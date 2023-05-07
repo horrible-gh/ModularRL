@@ -5,11 +5,11 @@ ModularRL project
 
 Copyright (c) 2023 horrible-gh
 
-Class AgentMCTS is an implementation of the Monte Carlo Tree Search (MCTS) algorithm. 
-It takes an environment and a setting configuration as inputs, initializes neural network instances and optimizers, 
-and sets various learning parameters. 
-It has methods to predict an action given a state, perform a learning step, update the neural network parameters, 
-save and load a checkpoint, and reset learning parameters. 
+Class AgentMCTS is an implementation of the Monte Carlo Tree Search (MCTS) algorithm.
+It takes an environment and a setting configuration as inputs, initializes neural network instances and optimizers,
+and sets various learning parameters.
+It has methods to predict an action given a state, perform a learning step, update the neural network parameters,
+save and load a checkpoint, and reset learning parameters.
 The class also has instance variables to keep track of episode and total rewards, previous reward, and average reward.
 
 This software includes the following third-party libraries:
@@ -41,11 +41,7 @@ class AgentMCTS(Agent):
         """
 
         super().__init__(env, setting)
-
-        # Neural Network
-        self.network = ActorCriticNetwork(self.state_dim, self.action_dim)
-        self.optimizer = optim.Adam(
-            self.network.parameters(), lr=setting.get('optimizer_speed', 3e-4))
+        super().init_actor_critic()
 
         # MCTS parameters
         self.num_simulations = setting.get('num_simulations', 800)
@@ -71,7 +67,7 @@ class AgentMCTS(Agent):
         """
 
         state_tensor = self.check_tensor(self._check_state(state))
-        action_probs, _ = self.network(state_tensor)
+        action_probs, _ = self.actor_critic_net(state_tensor)
         action_probs = action_probs.detach().numpy().flatten()
         root = Node(state, action_probs)
         Logger.verb(
@@ -119,7 +115,7 @@ class AgentMCTS(Agent):
                 else:
                     state_tensor = state.to(self.device)
 
-                action_probs, value = self.network(state_tensor)
+                action_probs, value = self.actor_critic_net(state_tensor)
                 action_space = self.env.action_space.n
                 node.expand(action_space, action_probs)
 
@@ -157,8 +153,14 @@ class AgentMCTS(Agent):
         for node in reversed(search_path):
             node.update_stats(reward)
             if not done:
-                _, reward = self.network(node.state)
+                _, reward = self.actor_critic_net(node.state)
                 reward = reward.item()
+
+    def learn(self):
+        """
+        Train the agent.
+        """
+        self.train()
 
     def train(self):
         """
@@ -190,12 +192,33 @@ class AgentMCTS(Agent):
             # print(f"Episode: {self.episode}, Reward: {self.total_reward}")
 
     def compute_loss(self, state, action, reward, next_state, done):
+        '''
+        This function computes the actor and critic loss using the provided state, action, reward, next_state, and done variables.
+        The actor loss is computed based on the policy gradient algorithm,
+        and the critic loss is computed as the mean squared error between the estimated value of the current state and the target value of the next state.
+
+        compute_loss() function computes the actor and critic loss values for the provided state, action, reward, next_state, and done variables.
+
+        The state parameter is the current state of the environment.
+        The action parameter is the action taken in the current state.
+        The reward parameter is the reward received for taking the action in the current state.
+        The next_state parameter is the state resulting from taking the action in the current state.
+        The done parameter is a flag indicating whether the episode has ended.
+
+        :param state: The current state of the environment.
+        :param action: The action taken in the current state.
+        :param reward: The reward received for taking the action in the current state.
+        :param next_state: The state resulting from taking the action in the current state.
+        :param done: A flag indicating whether the episode has ended.
+        :return: The computed actor and critic loss values.
+        '''
+
         # Predict action probabilities and values
-        action_probs, values = self.network(state)
+        action_probs, values = self.actor_critic_net(state)
 
         # Compute the value loss
         target_values = reward + self.gamma * \
-            self.network(next_state)[1] * (1 - done)
+            self.actor_critic_net(next_state)[1] * (1 - done)
         critic_loss = F.mse_loss(values, target_values.detach())
 
         # Compute the policy loss
@@ -206,17 +229,81 @@ class AgentMCTS(Agent):
         return actor_loss, critic_loss
 
     def update(self):
+        '''
+        This function updates the network parameters using the optimizer and computed loss values.
+
+        update() function updates the network parameters using the optimizer and computed loss values.
+        It uses the compute_loss() function to compute the loss and the optimizer object to perform the optimization step.
+
+        This function does not take any parameters and does not return anything.
+
+        :return: None
+        '''
+
         # Update the network
-        self.optimizer.zero_grad()
+        self.actor_critic_optimizer.zero_grad()
         actor_loss, critic_loss = self.compute_loss(
             self.state_tensor, self.action, self.reward, self.next_state, self.done)
         loss = actor_loss + critic_loss
         loss.backward()
-        self.optimizer.step()
+        self.actor_critic_optimizer.step()
 
     def check_tensor(self, obj):
+        '''
+        This function checks if the provided object is a PyTorch tensor, and if not, converts it to a tensor.
+
+        check_tensor() function checks if the provided obj parameter is a PyTorch tensor.
+        If it is not a tensor, it converts it to a tensor using torch.FloatTensor().
+        If it is already a tensor, it simply returns the tensor.
+
+        The obj parameter is the object to check/convert to a PyTorch tensor.
+
+        The function returns the input object as a PyTorch tensor.
+
+        :param obj: The object to check/convert to a PyTorch tensor.
+        :return: The input object as a PyTorch tensor.
+        '''
+
         if not torch.is_tensor(obj):
             obj_tensor = torch.FloatTensor(obj)
         else:
             obj_tensor = obj
         return obj_tensor
+
+    def save_model(self, file_name):
+        """
+        This function saves the model to the specified file.
+
+        :param file_name: The name of the file to save the model to.
+        :return: None
+        """
+        self.save(file_name)
+
+    def save(self, file_name):
+        """
+        This function saves the actor critic network to the specified file.
+
+        :param file_name: The name of the file to save the actor critic network to.
+        :return: None
+        """
+
+        self.save_actor_critic(file_name)
+
+    def load_model(self, file_name):
+        """
+        This function loads the model from the specified file.
+
+        :param file_name: The name of the file to load the model from.
+        :return: None
+        """
+        self.load(file_name)
+
+    def load(self, file_name):
+        """
+        This function loads the actor critic network from the specified file.
+
+        :param file_name: The name of the file to load the actor critic network from.
+        :return: None
+        """
+
+        self.load_actor_critic(file_name)

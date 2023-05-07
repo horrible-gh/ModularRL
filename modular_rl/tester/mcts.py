@@ -3,7 +3,7 @@ from modular_rl.settings import AgentSettings
 from modular_rl.agents.mcts import AgentMCTS
 
 
-def init():
+def init_mcts():
     env = gym.make('CartPole-v0')
     setting = AgentSettings.default_mcts
     setting['num_simulations'] = 10

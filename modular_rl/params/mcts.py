@@ -5,16 +5,17 @@ class ParamMCTS:
         'update_timestep': 2000,  # Update the policy every specified timestep
         'networks': 'medium',  # Size of the hidden layer in neural networks
         'optimizer_speed': 3e-4,  # Learning rate for the optimizer
-        'num_simulations': 10,
-        'cpuct': 1.0,
-        'temperature': 1.0,
+        'num_simulations': 10,  # Number of MCTS simulations per move
+        'cpuct': 1.0,  # Exploration constant for MCTS
+        'temperature': 1.0,  # Temperature for action selection during MCTS
         'gamma': 0.99,  # Discount factor
         # If the average reward is greater than or equal to this value, training is stopped early
         'early_stop_threshold': -1,
         'done_loop_end': False,  # If True, end the episode when the done flag is set
-        'reward_print': True,
-        'device': None,
-        'log_level': 'debug',
+        'reward_print': True,  # If True, print the reward during training
+        'device': None,  # Device to run the model on, None for automatic selection
+        'log_level': 'debug',  # Log level for the logger
+        'log_init_pass': False,  # If True, skip logger initialization
     }
 
     default_modular = {
@@ -26,13 +27,14 @@ class ParamMCTS:
         'update_timestep': -1,
         'networks': 'medium',  # Size of the hidden layer in neural networks
         'optimizer_speed': 3e-4,  # Learning rate for the optimizer
-        'num_simulations': 800,
-        'cpuct': 1.0,
-        'temperature': 1.0,
+        'num_simulations': 800,  # Number of MCTS simulations per move
+        'cpuct': 1.0,  # Exploration constant for MCTS
+        'temperature': 1.0,  # Temperature for action selection during MCTS
         'gamma': 0.99,  # Discount factor
         # If the average reward is greater than or equal to this value, training is stopped early
         'early_stop_threshold': -1,
-        'reward_print': True,
-        'device': None,
-        'log_level': 'debug',
+        'reward_print': True,  # If True, print the reward during training
+        'device': None,  # Device to run the model on, None for automatic selection
+        'log_level': 'debug',  # Log level for the logger
+        'log_init_pass': False,  # If True, skip logger initialization
     }

@@ -13,7 +13,8 @@ class ParamPPO:
         # If the average reward is greater than or equal to this value, training is stopped early
         'early_stop_threshold': -1,
         'done_loop_end': False,  # If True, end the episode when the done flag is set
-        'log_level': 'debug',
+        'log_level': 'debug',  # Log level for the logger
+        'log_init_pass': False,  # If True, skip logger initialization
     }
 
     default_modular = {
@@ -32,5 +33,6 @@ class ParamPPO:
         'clip_param': 0.2,  # Clipping parameter for PPO
         # If the average reward is greater than or equal to this value, training is stopped early
         'early_stop_threshold': -1,
-        'log_level': 'debug',
+        'log_level': 'debug',  # Log level for the logger
+        'log_init_pass': False,  # If True, skip logger initialization
     }

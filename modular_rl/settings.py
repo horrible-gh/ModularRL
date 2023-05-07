@@ -1,15 +1,14 @@
 '''
-The AgentSettings class is a configuration class used for setting up the PPO agent. 
+The AgentSettings class is a configuration class used for setting up various reinforcement learning agents.
 
-It provides default values for various parameters used in the agent, 
-such as the maximum number of episodes, maximum number of timesteps per episode, PPO update timestep, 
-number of PPO epochs, mini-batch size, network architecture, learning rate, 
-discount factor, lambda factor, clipping parameter, early stopping threshold, 
-and whether to end training when the environment is done.
+It provides default values for various parameters used in the agents, such as the maximum number of episodes,
+maximum number of timesteps per episode, update timestep, network architecture, learning rate,
+discount factor, early stopping threshold, and whether to end training when the environment is done.
 
-The default dictionary provides default values for all parameters, 
-while default_modular provides default values for all parameters except done_loop_end. 
-These default values can be modified by passing in a dictionary of key-value pairs to the AgentSettings constructor.
+The class currently supports PPO and MCTS algorithms, but it can be extended to include other algorithms in the future.
+The default dictionary provides default values for all parameters, while the modular version provides default values
+with more flexibility for specific use cases. These default values can be modified by passing in a dictionary of
+key-value pairs to the AgentSettings constructor.
 
 '''
 

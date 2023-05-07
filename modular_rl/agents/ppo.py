@@ -5,11 +5,11 @@ ModularRL project
 
 Copyright (c) 2023 horrible-gh
 
-Class AgentPPO is an implementation of the Proximal Policy Optimization (PPO) algorithm. 
-It takes an environment and a setting configuration as inputs, initializes neural network instances and optimizers, 
-and sets various learning parameters. 
-It has methods to predict an action given a state, perform a learning step, update the neural network parameters, 
-save and load a checkpoint, and reset learning parameters. 
+Class AgentPPO is an implementation of the Proximal Policy Optimization (PPO) algorithm.
+It takes an environment and a setting configuration as inputs, initializes neural network instances and optimizers,
+and sets various learning parameters.
+It has methods to predict an action given a state, perform a learning step, update the neural network parameters,
+save and load a checkpoint, and reset learning parameters.
 The class also has instance variables to keep track of episode and total rewards, previous reward, and average reward.
 
 This software includes the following third-party libraries:
@@ -40,16 +40,7 @@ class AgentPPO(Agent):
         """
 
         super().__init__(env, setting)
-
-        # Create neural network instances and optimizer
-        self.policy_net = PolicyNetwork(
-            self.state_dim, self.action_dim, setting.get('networks', 'middle'))
-        self.value_net = ValueNetwork(
-            self.state_dim, setting.get('networks', 'middle'))
-        self.policy_optimizer = optim.Adam(
-            self.policy_net.parameters(), lr=setting.get('optimizer_speed', 3e-4))
-        self.value_optimizer = optim.Adam(
-            self.value_net.parameters(), lr=setting.get('optimizer_speed', 3e-4))
+        super().init_policy_value()
 
         # Set learning parameters
         self.ppo_epochs = setting.get('ppo_epochs', 4)
@@ -244,6 +235,9 @@ class AgentPPO(Agent):
         """
         Perform an update of the PPO algorithm, using the stored information about the environment from the previous learning iterations.
         """
+
+        Logger.verb('agents:ppo:update',
+                    f'states={self.states}, next_states={self.next_states}, actions={self.actions}, rewards={self.rewards}, done={self.done}')
         states_tensor = torch.tensor(np.array(self.states, dtype=np.float32))
         actions_tensor = torch.tensor(np.array(self.actions))
         rewards_tensor = torch.tensor(np.array(self.rewards, dtype=np.float32))
@@ -252,16 +246,25 @@ class AgentPPO(Agent):
         done_tensor = torch.tensor(np.array(self.done, dtype=np.float32))
         log_probs_tensor = torch.stack(self.log_probs)
 
-        values = self.value_net(states_tensor).detach().squeeze()
-        next_values = self.value_net(next_states_tensor).detach().squeeze()
+        values = self.value_net(states_tensor).detach().squeeze(1)
+        next_values = self.value_net(next_states_tensor).detach().squeeze(1)
+
+        if len(next_states_tensor) > 0:
+            last_value = next_values[-1].item()
+        else:
+            last_value = 0
 
         advantages = self.compute_advantages(rewards_tensor.numpy(), np.append(
-            values.numpy(), next_values[-1].item()), done_tensor.numpy(), self.gamma, self.lam)
+            values.numpy(), last_value), done_tensor.numpy(), self.gamma, self.lam)
         advantages = (advantages - advantages.mean()) / \
             (advantages.std() + 1e-5)
         advantages_tensor = torch.tensor(advantages, dtype=torch.float32)
 
-        returns = np.add(advantages[:-1], values[:-1])
+        if len(advantages) > 1:
+            returns = np.add(advantages[:-1], values[:-1])
+        else:
+            returns = np.add(advantages, values)
+
         self.ppo_update(self.ppo_epochs, self.mini_batch_size, states_tensor,
                         actions_tensor, log_probs_tensor, returns, advantages_tensor)
 
@@ -269,6 +272,12 @@ class AgentPPO(Agent):
 
         self.episode += 1
         self.episode_reward = 0
+
+    def train(self):
+        """
+        Execute the learning loop, where the PPO algorithm is used to train the agent on the specified environment.
+        """
+        self.learn()
 
     def learn(self):
         """
@@ -355,51 +364,40 @@ class AgentPPO(Agent):
 
         super().learn_check()
 
-    def _check_state(self, state):
-        state_num = len(state)
-        if state_num == 2:
-            state, _ = state  # Unpack the tuple
-        return state
+    def save_model(self, file_name):
+        """
+        This function saves the model to the specified file.
+
+        :param file_name: The name of the file to save the model to.
+        :return: None
+        """
+        self.save(file_name)
 
     def save(self, file_name):
         """
-        Initialize the AgentPPO class with the specified environment and settings.
+        This function saves the policy and value networks to the specified file.
 
-        :param env: The environment to use for training.
-        :type env: gym.Env or None
-        :param setting: The settings for the PPO algorithm.
-        :type setting: AgentSettings
+        :param file_name: The name of the file to save the policy and value networks to.
+        :return: None
         """
 
-        torch.save({
-            'policy_net_state_dict': self.policy_net.state_dict(),
-            'value_net_state_dict': self.value_net.state_dict(),
-            'policy_optimizer_state_dict': self.policy_optimizer.state_dict(),
-            'value_optimizer_state_dict': self.value_optimizer.state_dict(),
-        }, file_name)
+        self.save_policy_value(file_name)
+
+    def load_model(self, file_name):
+        """
+        This function loads the model from the specified file.
+
+        :param file_name: The name of the file to load the model from.
+        :return: None
+        """
+        self.load(file_name)
 
     def load(self, file_name):
         """
-        Compute advantages for the PPO algorithm.
+        This function loads the policy and value networks from the specified file.
 
-        :param rewards: The rewards.
-        :type rewards: numpy.ndarray
-        :param values: The values.
-        :type values: numpy.ndarray
-        :param done: The done signals.
-        :type done: numpy.ndarray
-        :param gamma: The discount factor.
-        :type gamma: float
-        :param lam: The lambda parameter.
-        :type lam: float
-        :return: The computed advantages.
-        :rtype: numpy.ndarray
+        :param file_name: The name of the file to load the policy and value networks from.
+        :return: None
         """
 
-        checkpoint = torch.load(file_name)
-        self.policy_net.load_state_dict(checkpoint['policy_net_state_dict'])
-        self.value_net.load_state_dict(checkpoint['value_net_state_dict'])
-        self.policy_optimizer.load_state_dict(
-            checkpoint['policy_optimizer_state_dict'])
-        self.value_optimizer.load_state_dict(
-            checkpoint['value_optimizer_state_dict'])
+        self.load_policy_value(file_name)
