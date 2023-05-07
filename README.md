@@ -115,7 +115,7 @@ The file_name parameter should be the name of the file to save or load the model
 
 Example:
 
-```
+```python
 agent = AgentPPO(env, setting)
 agent.train()
 
