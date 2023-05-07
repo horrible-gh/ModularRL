@@ -8,7 +8,7 @@ version = "0.2.0"
 authors = [
   { name="horrible", email="shinjpn1@gmail.com" },
 ]
-description = "ModularRL is a Python library for creating and training reinforcement learning agents using the Proximal Policy Optimization (PPO) algorithm. The library is designed to be easily customizable and modular, allowing users to quickly set up and train PPO agents for various environments."
+description = "ModularRL is a Python library for creating and training reinforcement learning agents using various algorithms. The library is designed to be easily customizable and modular, allowing users to quickly set up and train agents for various environments without being limited to a specific algorithm."
 readme = "README.md"
 requires-python = ">=3.7"
 classifiers = [
