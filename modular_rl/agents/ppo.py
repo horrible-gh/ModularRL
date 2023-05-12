@@ -179,34 +179,45 @@ class AgentPPO(Agent):
 
         return self.update_step(state, dist, action, timestep)
 
-    def update_step(self, state, dist, action, timestep):
+    def update_step(self, state, dist, action, timestep, auto_step=True, is_done=False, reward=0, next_state=None):
         """
-        Takes a step in the environment with a given action and updates the PPO algorithm with the resulting state, reward, and action.
+        Updates the Proximal Policy Optimization (PPO) algorithm with the provided state, action, and timestep. This function can either take an environment step based on the given action (auto_step=True) or manually handle state transitions (auto_step=False).
 
         :param state: The current state of the environment.
         :type state: numpy.ndarray
-        :param dist: The corresponding probability distribution.
+        :param dist: The corresponding probability distribution of the action space.
         :type dist: torch.distributions.Categorical
         :param action: The action taken by the agent.
         :type action: int
-        :param reaction: The reaction of the opponent after the agent's action.
-        :type reaction: tuple
         :param timestep: The current timestep of the training process.
         :type timestep: int
-        :return: The resulting reward and whether the episode is done or not.
-        :rtype: tuple(float, bool)
+        :param auto_step: Flag to determine whether to take an environment step or not. If False, is_done, reward, and next_state should be provided.
+        :type auto_step: bool, optional
+        :param is_done: Flag to mark if the episode is done or not. Should be provided if auto_step is False.
+        :type is_done: bool, optional
+        :param reward: The reward for the current step. Should be provided if auto_step is False.
+        :type reward: float, optional
+        :param next_state: The next state after the current action. If not provided and auto_step is False, it will be assumed to be the same as the current state.
+        :type next_state: numpy.ndarray, optional
+        :return: The action taken, the resulting reward, whether the episode is done or not, and the updated timestep.
+        :rtype: tuple(int, float, bool, int)
         """
 
         if dist == None and self.dist:
             dist = self.dist
 
-        step_output = self.env.step(action.item())
-        step_output_num = len(step_output)
+        if auto_step:
+            step_output = self.env.step(action.item())
+            step_output_num = len(step_output)
 
-        if step_output_num == 4:
-            next_state, reward, is_done, _ = step_output
-        elif step_output_num == 5:
-            next_state, reward, is_done, _, _ = step_output
+            if step_output_num == 4:
+                next_state, reward, is_done, _ = step_output
+            elif step_output_num == 5:
+                next_state, reward, is_done, _, _ = step_output
+
+        else:
+            if next_state is None:
+                next_state = state
 
         self.episode_reward += reward
         self.total_reward += reward
@@ -229,7 +240,7 @@ class AgentPPO(Agent):
         if self.update_timestep > 0 and timestep > 0 and (timestep % self.update_timestep == 0):
             self.update()
 
-        return action, reward, is_done
+        return action, reward, is_done, timestep
 
     def update(self):
         """
@@ -298,7 +309,8 @@ class AgentPPO(Agent):
                 reward = 0
 
                 for t in range(self.max_timesteps):
-                    _, reward, is_done = self.learn_step(self.state, timestep)
+                    action, reward, is_done, timestep = self.learn_step(
+                        self.state, timestep)
                     if is_done:
                         break
 
