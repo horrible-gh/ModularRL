@@ -24,7 +24,7 @@ class AgentMCIS(Agent):
         super().__init__(env, setting)
         super().init_actor_critic()
 
-        # MCTS parameters
+        # mcis parameters
         self.num_simulations = setting.get('num_simulations', 800)
         self.cpuct = setting.get('cpuct', 1.0)
         self.temperature = setting.get('temperature', 1.0)
@@ -40,7 +40,7 @@ class AgentMCIS(Agent):
 
     def select_action(self, state):
         """
-        Select an action using MCTS.
+        Select an action using mcis.
 
         :param state: The current state.
         :type state: numpy.ndarray
@@ -53,22 +53,22 @@ class AgentMCIS(Agent):
         action_probs = action_probs.detach().numpy().flatten()
         root = Node(state, action_probs)
         Logger.verb(
-            'agents:mcts:select_action:self.num_simulations', self.num_simulations)
+            'agents:mcis:select_action:self.num_simulations', self.num_simulations)
         Logger.verb(
-            'agents:mcts:select_action:root', root)
+            'agents:mcis:select_action:root', root)
         Logger.verb(
-            'agents:mcts:select_action:action_probs', action_probs)
-        Logger.verb('agents:mcts:select_action:node', f'Root node: {root}')
+            'agents:mcis:select_action:action_probs', action_probs)
+        Logger.verb('agents:mcis:select_action:node', f'Root node: {root}')
         for _ in range(self.num_simulations):
             node = root
             search_path = [node]
             # Logger.verb(
-            #    'agents:mcts:select_action:search_path', search_path)
+            #    'agents:mcis:select_action:search_path', search_path)
             # Selection
             while node.expanded():
                 action, node = node.select_child(self.cpuct)
                 search_path.append(node)
-            Logger.verb('agents:mcts:select_action:After selection',
+            Logger.verb('agents:mcis:select_action:After selection',
                         f' {search_path[-1]}')
 
             # Expansion
@@ -78,7 +78,7 @@ class AgentMCIS(Agent):
                 # or some other suitable defaults
                 parent, action = search_path[0], None
 
-            # Logger.verb('mcts:select_action:action', action)
+            # Logger.verb('mcis:select_action:action', action)
             step_output = self.env.step(action) if action is not None else (
                 parent.state, 0, False, None)
             step_output_num = len(step_output)
@@ -90,7 +90,7 @@ class AgentMCIS(Agent):
 
             if not done:
                 # Logger.verb(
-                #    'agents:mcts:select_action:state', state)
+                #    'agents:mcis:select_action:state', state)
                 if not torch.is_tensor(state):
                     state_tensor = torch.from_numpy(
                         state).float().to(self.device)
@@ -106,7 +106,7 @@ class AgentMCIS(Agent):
             self.backpropagate(search_path, value.item(), done)
 
         action_probs, _ = self.actor_critic_net(root.state)
-        chosen_action = np.random.choice(range(len(action_probs)), p=action_probs)
+        chosen_action = np.random.choice(range(len(action_probs)), p=action_probs.detach().numpy())
 
         chosen_action_reward = root.children[chosen_action].total_value
         chosen_action_state = root.children[chosen_action].state
