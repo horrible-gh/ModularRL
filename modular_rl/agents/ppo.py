@@ -54,7 +54,7 @@ class AgentPPO(Agent):
 
     # Implement PPO algorithm
 
-    def compute_advantages(self, rewards, values, done, gamma=0.99, lam=0.95):
+    def compute_advantages(self, rewards, values, dones, gamma=0.99, lam=0.95):
         """
         Compute advantages given the rewards, values, done flags, and discount factors.
 
@@ -76,9 +76,9 @@ class AgentPPO(Agent):
         last_advantage = 0
         for t in reversed(range(len(rewards))):
             delta = rewards[t] + gamma * \
-                values[t + 1] * (1 - done[t]) - values[t]
+                values[t + 1] * (1 - dones[t]) - values[t]
             advantages[t] = delta + gamma * lam * \
-                last_advantage * (1 - done[t])
+                last_advantage * (1 - dones[t])
             last_advantage = advantages[t]
         return advantages
 
@@ -208,20 +208,13 @@ class AgentPPO(Agent):
 
         if auto_step:
             step_output = self.env.step(action.item())
-            step_output_num = len(step_output)
-
-            if step_output_num == 4:
-                next_state, reward, is_done, _ = step_output
-            elif step_output_num == 5:
-                next_state, reward, is_done, _, _ = step_output
+            next_state, reward, is_done = self.step_unpack(step_output)
 
         else:
             if next_state is None:
                 next_state = state
 
-        self.episode_reward += reward
-        self.total_reward += reward
-        self.prev_reward = reward
+        self.update_reward(reward)
 
         state = self._check_state(state)
 
@@ -229,7 +222,7 @@ class AgentPPO(Agent):
         self.actions.append(action)
         self.rewards.append(reward)
         self.next_states.append(next_state)
-        self.done.append(is_done)
+        self.dones.append(is_done)
         self.log_probs.append(dist.log_prob(action))
 
         self.state = next_state
@@ -248,13 +241,13 @@ class AgentPPO(Agent):
         """
 
         Logger.verb('agents:ppo:update',
-                    f'states={self.states}, next_states={self.next_states}, actions={self.actions}, rewards={self.rewards}, done={self.done}')
+                    f'states={self.states}, next_states={self.next_states}, actions={self.actions}, rewards={self.rewards}, dones={self.dones}')
         states_tensor = torch.tensor(np.array(self.states, dtype=np.float32))
         actions_tensor = torch.tensor(np.array(self.actions))
         rewards_tensor = torch.tensor(np.array(self.rewards, dtype=np.float32))
         next_states_tensor = torch.tensor(
             np.array(self.next_states, dtype=np.float32))
-        done_tensor = torch.tensor(np.array(self.done, dtype=np.float32))
+        done_tensor = torch.tensor(np.array(self.dones, dtype=np.float32))
         log_probs_tensor = torch.stack(self.log_probs)
 
         values = self.value_net(states_tensor).detach().squeeze(1)
@@ -280,9 +273,7 @@ class AgentPPO(Agent):
                         actions_tensor, log_probs_tensor, returns, advantages_tensor)
 
         self.reset()
-
-        self.episode += 1
-        self.episode_reward = 0
+        self.update_episode()
 
     def train(self):
         """
@@ -331,24 +322,6 @@ class AgentPPO(Agent):
         else:
             self.reset()
 
-    def reset(self):
-        """
-        Reset the lists that contain information about the states, actions, rewards, and other values for the agent.
-        """
-
-        self.states = []
-        self.actions = []
-        self.rewards = []
-        self.next_states = []
-        self.done = []
-        self.log_probs = []
-
-    def learn_reset(self):
-        """
-        Reset the agent's state and episode reward.
-        """
-
-        return super().learn_reset()
 
     def learn_next(self):
         """
@@ -358,9 +331,9 @@ class AgentPPO(Agent):
         :rtype: tuple(torch.Tensor, float, bool)
         """
 
-        action, reward, is_done = self.learn_step(self.state, -1)
+        action, reward, is_done, timestep = self.learn_step(self.state, -1)
 
-        return action, reward, is_done
+        return action, reward, is_done, timestep
 
     def learn_close(self):
         """

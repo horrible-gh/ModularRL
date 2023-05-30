@@ -68,6 +68,7 @@ class Agent:
         self.action = None
         self.reward = None
         self.done = None
+        self.reset()
 
         # Logger initialize
         self.log_level = setting.get('log_level', 'debug')
@@ -81,6 +82,18 @@ class Agent:
                 out_file=None,
                 prev_log_remove=None
             )
+
+    def reset(self):
+        """
+        Reset the lists that contain information about the states, actions, rewards, and other values for the agent.
+        """
+
+        self.states = []
+        self.actions = []
+        self.rewards = []
+        self.next_states = []
+        self.dones = []
+        self.log_probs = []
 
     def init_policy_value(self):
         """
@@ -120,6 +133,7 @@ class Agent:
         if state_num == 2:
             state, _ = state  # Unpack the tuple
         return state
+
 
     def learn_reset(self):
         """
@@ -226,3 +240,20 @@ class Agent:
             checkpoint['actor_critic_net_state_dict'])
         self.actor_critic_optimizer.load_state_dict(
             checkpoint['optimizer_state_dict'])
+
+    def step_unpack(self, step_output):
+        step_output_num = len(step_output)
+        if step_output_num == 4:
+            next_state, reward, is_done, _ = step_output
+        elif step_output_num == 5:
+            next_state, reward, is_done, _, _ = step_output
+        return next_state, reward, is_done
+
+    def update_reward(self, reward) :
+        self.episode_reward += reward
+        self.total_reward += reward
+        self.prev_reward = reward
+
+    def update_episode(self):
+        self.episode += 1
+        self.episode_reward = 0

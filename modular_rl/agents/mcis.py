@@ -38,6 +38,33 @@ class AgentMCIS(Agent):
         # self.state_tensor
 
 
+    def update_step(self, state, action, reward, done, next_state):
+        """
+        Updates the provided state, action, reward, done, and next_state.
+
+        :param state: The current state of the environment.
+        :type state: numpy.ndarray
+        :param action: The action taken by the agent.
+        :type action: int
+        :param reward: The reward for the current step.
+        :type reward: float
+        :param done: Flag to mark if the episode is done or not.
+        :type done: bool
+        :param next_state: The next state after the current action.
+        :type next_state: numpy.ndarray
+        """
+
+        self.update_reward(reward)
+
+        self.states.append(state)
+        self.actions.append(action)
+        self.rewards.append(reward)
+        self.dones.append(done)
+        self.next_states.append(next_state)
+
+        if done:
+            self.update()
+
     def select_action(self, state):
         """
         Select an action using mcis.
@@ -48,81 +75,34 @@ class AgentMCIS(Agent):
         :rtype: int
         """
 
-        state_tensor = self.check_tensor(self._check_state(state))
+        state_tensor = self.check_tensor(state).to(self.device)
         action_probs, _ = self.actor_critic_net(state_tensor)
         action_probs = action_probs.detach().numpy().flatten()
         root = Node(state, action_probs)
-        Logger.verb(
-            'agents:mcis:select_action:self.num_simulations', self.num_simulations)
-        Logger.verb(
-            'agents:mcis:select_action:root', root)
-        Logger.verb(
-            'agents:mcis:select_action:action_probs', action_probs)
-        Logger.verb('agents:mcis:select_action:node', f'Root node: {root}')
         for _ in range(self.num_simulations):
             node = root
             search_path = [node]
-            # Logger.verb(
-            #    'agents:mcis:select_action:search_path', search_path)
-            # Selection
             while node.expanded():
                 action, node = node.select_child(self.cpuct)
                 search_path.append(node)
-            Logger.verb('agents:mcis:select_action:After selection',
-                        f' {search_path[-1]}')
-
-            # Expansion
             if len(search_path) > 1:
                 parent, action = search_path[-2], search_path[-1].action
             else:
-                # or some other suitable defaults
                 parent, action = search_path[0], None
-
-            # Logger.verb('mcis:select_action:action', action)
-            step_output = self.env.step(action) if action is not None else (
-                parent.state, 0, False, None)
-            step_output_num = len(step_output)
-
-            if step_output_num == 4:
-                state, reward, done, _ = step_output
-            elif step_output_num == 5:
-                state, reward, done, _, _ = step_output
-
-            if not done:
-                # Logger.verb(
-                #    'agents:mcis:select_action:state', state)
-                if not torch.is_tensor(state):
-                    state_tensor = torch.from_numpy(
-                        state).float().to(self.device)
-                else:
-                    state_tensor = state.to(self.device)
-
+            if True not in self.dones:  # Check if the game is not over
+                state_tensor = self.check_tensor(node.state).to(self.device)
                 action_probs, value = self.actor_critic_net(state_tensor)
                 action_space = self.env.action_space.n
-                node.expand(action_space, action_probs)
-
-            # Backpropagation
-            _, value = self.actor_critic_net(node.state)
-            self.backpropagate(search_path, value.item(), done)
-
-        action_probs, _ = self.actor_critic_net(root.state)
+                node.expand(action_space, action_probs, False)
+            state_tensor = self.check_tensor(node.state).to(self.device)
+            _, value = self.actor_critic_net(state_tensor)
+            self.backpropagate(search_path, value.item(), node.done)
+        root_state_tensor = self.check_tensor(root.state).to(self.device)  # This line is added
+        action_probs, _ = self.actor_critic_net(root_state_tensor)
         chosen_action = np.random.choice(range(len(action_probs)), p=action_probs.detach().numpy())
+        return chosen_action
 
-        chosen_action_reward = root.children[chosen_action].total_value
-        chosen_action_state = root.children[chosen_action].state
-        # Assuming that a non-zero reward indicates a terminal state
-        done = (chosen_action_reward != 0)
 
-        # Save selected learning data separately
-        self.state = chosen_action_state
-        self.action = chosen_action
-        self.reward = chosen_action_reward
-        self.done = done
-
-        self.total_reward += reward
-        self.prev_reward = reward
-
-        return chosen_action_state, chosen_action, chosen_action_reward, done
 
 
     def backpropagate(self, search_path, reward, done):
@@ -139,7 +119,8 @@ class AgentMCIS(Agent):
         for node in reversed(search_path):
             node.update_stats(reward)
             if not done:
-                _, reward = self.actor_critic_net(node.state)
+                state_tensor = self.check_tensor(node.state).to(self.device)
+                _, reward = self.actor_critic_net(state_tensor)
                 reward = reward.item()
 
 
@@ -157,26 +138,31 @@ class AgentMCIS(Agent):
         for episode in range(self.max_episodes):
             self.episode = episode
             state = self.learn_reset()
-            # state = self.env.reset()
 
             for t in range(self.max_timesteps):
                 state = self._check_state(state)
                 self.state_tensor = self.check_tensor(state).squeeze(0)
-                self.next_state, self.action, self.reward, self.done = self.select_action(
-                    self.state_tensor)
 
-                self.learn_check()
+                # Select an action
+                action = self.select_action(self.state_tensor)
 
-                if self.done:
-                    # self.update()
+                # Take a step in the environment
+                step_out = self.env.step(action)
+                next_state, reward, done = self.step_unpack(step_out)
+
+                # Update the agent's experience
+                self.update_step(state, action, reward, done, next_state)
+
+                # Update the network parameters at the end of the episode
+                if done:
+                    self.update()
+                    self.learn_check()
                     break
 
-                self.update()
-
-                state = self.next_state
+                state = next_state
 
             self.episode += 1
-            # print(f"Episode: {self.episode}, Reward: {self.total_reward}")
+
 
     def compute_loss(self, state, action, reward, next_state, done):
         '''
@@ -203,39 +189,57 @@ class AgentMCIS(Agent):
         # Predict action probabilities and values
         action_probs, values = self.actor_critic_net(state)
 
+        #Logger.verb('agents:mcis:compute_loss',f'{self.actor_critic_net(next_state)}')
+
         # Compute the value loss
-        target_values = reward + self.gamma * \
-            self.actor_critic_net(next_state)[1] * (1 - done)
+        actor_output, critic_output = self.actor_critic_net(next_state)
+        target_values = reward + self.gamma * torch.mean(critic_output) * (1 - done)
+        target_values = target_values.unsqueeze(1)
         critic_loss = F.mse_loss(values, target_values.detach())
+
 
         # Compute the policy loss
         m = Categorical(action_probs)
         logprobs = m.log_prob(self.check_tensor(action))
         actor_loss = -logprobs * (target_values - values).detach()
 
+        # Take mean of actor_loss and critic_loss
+        actor_loss = actor_loss.mean()
+        critic_loss = critic_loss.mean()
+
         return actor_loss, critic_loss
 
     def update(self):
-        '''
+        """
         This function updates the network parameters using the optimizer and computed loss values.
+        """
 
-        update() function updates the network parameters using the optimizer and computed loss values.
-        It uses the compute_loss() function to compute the loss and the optimizer object to perform the optimization step.
+        if not self.states:  # Check if the states list is empty
+            return
 
-        This function does not take any parameters and does not return anything.
+        #Logger.verb('agents:mcis:update',f'states={self.states},actions={self.actions},rewards={self.rewards},dones={self.dones}')
 
-        :return: None
-        '''
+        # Prepare data
+        states_tensor = torch.stack([self.check_tensor(state) for state in self.states]).to(self.device)
+        actions_tensor = torch.Tensor(self.actions).to(self.device)
+        rewards_tensor = torch.Tensor(self.rewards).to(self.device)
+        next_states_tensor = torch.stack([self.check_tensor(state) for state in self.next_states]).to(self.device)
+        dones_tensor = torch.Tensor(self.dones).to(self.device)
 
-        # Update the network
+        # Compute loss
+        actor_loss, critic_loss = self.compute_loss(states_tensor, actions_tensor, rewards_tensor, next_states_tensor, dones_tensor)
+
+        # Compute gradients and update network parameters
         self.actor_critic_optimizer.zero_grad()
-        actor_loss, critic_loss = self.compute_loss(
-            self.state_tensor, self.action, self.reward, self.next_state, self.done)
         loss = actor_loss + critic_loss
         loss.backward()
         self.actor_critic_optimizer.step()
 
-    def check_tensor(self, obj):
+        # Reset the lists for the next episode
+        self.reset()
+        self.update_episode()
+
+    def check_tensor(self, state):
         '''
         This function checks if the provided object is a PyTorch tensor, and if not, converts it to a tensor.
 
@@ -251,11 +255,9 @@ class AgentMCIS(Agent):
         :return: The input object as a PyTorch tensor.
         '''
 
-        if not torch.is_tensor(obj):
-            obj_tensor = torch.FloatTensor(obj)
-        else:
-            obj_tensor = obj
-        return obj_tensor
+        if not isinstance(state, torch.Tensor):
+            state = torch.tensor(state, dtype=torch.float32)
+        return state
 
     def save_model(self, file_name):
         """
