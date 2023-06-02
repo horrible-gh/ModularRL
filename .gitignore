@@ -8,7 +8,7 @@ test
 work
 test.pth
 data
-
+reinstall_local.sh
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -15,7 +15,7 @@ key-value pairs to the AgentSettings constructor.
 from modular_rl.params.ppo import ParamPPO
 from modular_rl.params.mcts import ParamMCTS
 from modular_rl.params.mcis import ParamMCIS
-
+from modular_rl.params.mim import ParamMIM
 
 class AgentSettings:
     default_ppo = ParamPPO.default
@@ -24,3 +24,4 @@ class AgentSettings:
     default_mcts_modular = ParamMCTS.default_modular
     default_mcis = ParamMCIS.default
     default_mcis_modular = ParamMCIS.default_modular
+    default_mim = ParamMIM.default

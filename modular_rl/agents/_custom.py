@@ -1,5 +1,5 @@
 from LogAssist.log import Logger
-from modular_rl.util.custom_env import CustomEnv
+from modular_rl.envs._custom import CustomEnv
 
 class AgentCustom:
     def __init__(self, env, setting):
