@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='modular_rl',
-    version='0.2.3',
+    version='0.2.4',
     description='ModularRL package',
     author='sjm',
     author_email='shinjpn1@gmail.com',
@@ -25,6 +25,6 @@ setup(
         'numpy>=1.18.0',
         'torch>=1.24.2',
         'gym>=0.23.0',
-        'LogAssist>=1.0.4'
+        'LogAssist>=1.0.6'
     ],
 )
