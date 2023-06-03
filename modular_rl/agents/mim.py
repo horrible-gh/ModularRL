@@ -1,6 +1,5 @@
 import random
 import numpy as np
-from scipy.stats import skew, kurtosis
 from LogAssist.log import Logger
 from modular_rl.agents._custom import AgentCustom
 from modular_rl.params.mim import ParamMIM
@@ -18,7 +17,12 @@ class AgentMIM(AgentCustom):
         self.score_calculation_callback_name = setting.get('score_calculation_callback', ParamMIM.default['score_calculation_callback'])
         self.score_column = setting.get('score_column', ParamMIM.default['score_column'])
         self.simulation_iterations = setting.get('simulation_iterations', ParamMIM.default['simulation_iterations'])
-
+        self.standard_deviation_average = 0
+        self.standard_deviation_counts = 0
+        self.skew_average = 0
+        self.skew_counts = 0
+        self.kurtosise_average = 0
+        self.kurtosise_counts = 0
 
 
     def simulate(self,state) :
@@ -74,19 +78,52 @@ class AgentMIM(AgentCustom):
             simulation_totals.append(sim_result)
             simulation_averages.append(sim_result / simulation_iteration_indexes[p])
             standard_deviations.append(np.std(simulation_table[p]))
-            skews.append(skew(simulation_table[p]))
-            kurtosises.append(kurtosis(simulation_table[p]))
+            skewness, kurtosis = self.calc_skewness_kurtosis(simulation_table[p])
+            skews.append(skewness)
+            kurtosises.append(kurtosis)
 
         Logger.verb('simulator:simulation_totals',simulation_totals)
         Logger.verb('simulator:simulation_averages',simulation_averages)
         Logger.verb('simulator:standard_deviations',standard_deviations)
         Logger.verb('simulator:skews',skews)
         Logger.verb('simulator:kurtosises',kurtosises)
-        return None
+        return simulation_iteration_indexes, simulation_averages, standard_deviations, skews, kurtosises
+
+
+    def calc_skewness_kurtosis(self, data):
+        n = len(data)
+        mean = np.mean(data)
+        std_dev = np.std(data)
+
+        skewness = (1/n) * sum((x - mean)**3 for x in data) / (std_dev**3)
+        kurtosis = (1/n) * sum((x - mean)**4 for x in data) / (std_dev**4) - 3
+
+        return skewness, kurtosis
+
+    def state_analyze(self, simulation_iteration_indexes, simulation_averages, standard_deviations, skews, kurtosises):
+        skip_myself = False
+        if simulation_iteration_indexes[self.my_simulation_number] <=1:
+            skip_myself = True
+
+        my_simulation_average = simulation_averages[self.my_simulation_number]
+        my_standard_deviation = standard_deviations[self.my_simulation_number]
+        my_skew = skews[self.my_simulation_number]
+        my_kurtosises = kurtosises[self.my_simulation_number]
+
+        if skip_myself:
+            del simulation_averages[self.my_simulation_number]
+            del standard_deviations[self.my_simulation_number]
+            del skews[self.my_simulation_number]
+            del kurtosises[self.my_simulation_number]
+
+        avg_standard_deviations = sum(standard_deviations) / len(standard_deviations)
+        avg_skews = sum(skews) / len(skews)
+        avg_kurtosises = sum(kurtosises) / len(kurtosises)
 
 
     def select_action(self, state):
-        self.simulate(state)
+        simulation_iteration_indexes, simulation_averages, standard_deviations, skews, kurtosises = self.simulate(state)
+
 
 
     def update_step(self, state, action, reward, done, next_state):
@@ -123,3 +160,6 @@ class AgentMIM(AgentCustom):
         state = self.env.reset()
         Logger.verb('mim:learn:state', state)
         self.select_action(state)
+
+    def save_model(self):
+        pass
