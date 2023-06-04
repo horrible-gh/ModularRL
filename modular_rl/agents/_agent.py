@@ -50,7 +50,7 @@ class Agent:
 
         # Training parameters(Common)
         self.max_episodes = setting.get('max_episodes', 30)
-        self.max_timesteps = setting.get('max_timesteps', 1000)
+        self.max_timesteps = setting.get('max_timesteps', 100)
         self.update_timestep = setting.get('update_timestep', 200)
         self.gamma = setting.get('gamma', 0.99)
         self.early_stop_threshold = setting.get('early_stop_threshold', -1)

@@ -2,6 +2,7 @@ import random
 from modular_rl.envs._custom import CustomEnv
 from modular_rl.envs.mim.card_evaluator import CardEvaluator
 from LogAssist.log import Logger
+import copy
 
 
 class EnvMIM(CustomEnv):
@@ -73,8 +74,67 @@ class EnvMIM(CustomEnv):
         if len(self.simulation_states) == 0:
             return None
         else:
-            hands = self.simulation_states[0]
-            del self.simulation_states[0]
-            self.current_card += 1
-            self.allocate_max -= 1
-            return hands
+            hand = random.choice(self.simulation_states)
+            self.simulation_states.remove(hand)
+            return hand
+
+    def step(self, action):
+        scores = []
+        max_p = len(self.fixed_states)
+        rank = max_p
+
+        step_states = copy.deepcopy(self.fixed_states)
+        Logger.verb('envs:mim:step', step_states)
+        for c in range(3):
+            for p in range(len(step_states)):
+                if p == 0:
+                    continue
+                step_states[p].append(self.card_allocate())
+
+        for p in range(len(step_states)):
+            scores.append(CardEvaluator.card_evaluator(
+                step_states[p])['score'])
+
+        my_score = scores[0]
+        for p in range(len(step_states)):
+            if p == 0:
+                continue
+            if my_score > scores[p]:
+                rank -= 1
+
+        if rank == 1:
+            if action == 2:
+                reward = max_p
+            elif action == 1:
+                reward = max_p / 2
+            else:
+                reward = -2
+        elif rank == 2:
+            if action == 2:
+                reward = max_p - 1
+            elif action == 1:
+                reward = max_p / 2
+            else:
+                reward = -1
+        elif rank == 3:
+            if action == 2:
+                reward = -1
+            elif action == 1:
+                reward = 1
+            else:
+                reward = 1
+        elif rank == 4:
+            if action == 2:
+                reward = -2
+            elif action == 1:
+                reward = -1
+            else:
+                reward = 1
+        elif rank == 5:
+            if action == 2:
+                reward = -2
+            elif action == 1:
+                reward = -2
+            else:
+                reward = 1
+        return step_states, reward, True

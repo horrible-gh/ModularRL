@@ -1,6 +1,7 @@
 from LogAssist.log import Logger
 from modular_rl.envs._custom import CustomEnv
 
+
 class AgentCustom:
     def __init__(self, env, setting):
         self.env = env if env else CustomEnv()
@@ -19,6 +20,10 @@ class AgentCustom:
         self.reward = None
         self.done = None
         self.reset()
+
+        # Training parameters(Common)
+        self.max_episodes = setting.get('max_episodes', 30)
+        self.max_timesteps = setting.get('max_timesteps', 100)
 
         # Logger initialize
         self.log_level = setting.get('log_level', 'debug')
@@ -45,7 +50,6 @@ class AgentCustom:
         self.dones = []
         self.log_probs = []
 
-
     def _check_state(self, state):
         '''
         This function takes a state parameter and returns the first element of a tuple if state has a length of 2, otherwise it simply returns the state parameter.
@@ -67,7 +71,6 @@ class AgentCustom:
         self.state = self.env.reset()
         return self._check_state(self.state)
 
-
     def learn_close(self):
         """
         Close the environment and reset the agent's total reward, episode count, and episode reward.
@@ -77,7 +80,6 @@ class AgentCustom:
         self.total_reward = 0
         self.episode = 0
         self.episode_reward = 0
-
 
     def learn_check(self):
         """
@@ -109,7 +111,15 @@ class AgentCustom:
         '''
         pass
 
-    def update_reward(self, reward) :
+    def step_unpack(self, step_output):
+        step_output_num = len(step_output)
+        if step_output_num == 4:
+            next_state, reward, is_done, _ = step_output
+        elif step_output_num == 5:
+            next_state, reward, is_done, _, _ = step_output
+        return next_state, reward, is_done
+
+    def update_reward(self, reward):
         self.episode_reward += reward
         self.total_reward += reward
         self.prev_reward = reward

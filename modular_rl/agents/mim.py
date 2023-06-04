@@ -12,7 +12,7 @@ class AgentMIM(AgentCustom):
         self.unknown_spaces_name = 'unknown_spaces'
         self.simulation_states_name = 'simulation_states'
         self.excluded_states_name = 'excluded_states'
-        self.my_simulation_number = 'my_simulation_number'
+        self.my_simulation_number_name = 'my_simulation_number'
         self.score_table_name = 'score_table'
         self.score_calculation_callback_name = 'score_calculation_callback'
         self.score_column = setting.get(
@@ -21,6 +21,10 @@ class AgentMIM(AgentCustom):
             'simulation_iterations', ParamMIM.default['simulation_iterations'])
         self.judgement_flexibility = setting.get(
             'judgement_flexibility', ParamMIM.default['judgement_flexibility'])
+        self.simulation_iteration_indexes_count = 0
+        self.standard_deviations_avg = 0
+        self.skews_avg = 0
+        self.kurtosises_avg = 0
         self.reset()
 
     def simulate(self, state):
@@ -30,7 +34,8 @@ class AgentMIM(AgentCustom):
             self.simulation_states_name: 'simulation_states',
             self.excluded_states_name: 'excluded_states',
             self.score_calculation_callback_name: 'score_calculation_callback',
-            self.score_table_name: 'score_table'
+            self.my_simulation_number_name: 'my_simulation_number',
+            self.score_table_name: 'score_table',
         }
 
         for element_key, error_obj in required_state_elements.items():
@@ -43,6 +48,7 @@ class AgentMIM(AgentCustom):
         simulation_states = state[self.simulation_states_name]
         excluded_states = state[self.excluded_states_name]
         score_calculation_callback = state[self.score_calculation_callback_name]
+        self.my_simulation_number = state[self.my_simulation_number_name]
         score_table = state[self.score_table_name]
         remaining_states = set(simulation_states) - set(excluded_states)
         simulation_table = []
@@ -108,18 +114,29 @@ class AgentMIM(AgentCustom):
 
         return skewness, kurtosis
 
+    def rank_array(array):
+        temp = array.argsort()
+        ranks = np.empty_like(temp)
+        ranks[temp] = len(array) - (np.arange(len(array)))
+
+        return ranks
+
     def state_analyze(self):
         skip_myself = False
         skip_count = 0
+        Logger.verb('mim:state_analyze',
+                    f'{self.simulation_iteration_indexes}, {self.my_simulation_number}')
         if self.simulation_iteration_indexes[self.my_simulation_number] <= 1:
             skip_myself = True
             skip_count = 1
 
-        reliability = [1 for p in len(
-            self.simulation_iteration_indexes) - skip_count]
+        reliability = [1 for p in range(len(
+            self.simulation_iteration_indexes) - skip_count)]
 
-        simulation_after_averages = [0 for p in len(
-            self.simulation_iteration_indexes) - skip_count]
+        simulation_after_averages = [0 for p in range(len(
+            self.simulation_iteration_indexes) - skip_count)]
+
+        action_weight = [0 for weight in range(self.env.action_space)]
 
         my_simulation_number = self.my_simulation_number
         my_simulation_average = self.simulation_averages[my_simulation_number]
@@ -169,65 +186,95 @@ class AgentMIM(AgentCustom):
             my_simulation_after_average = my_simulation_average
         else:
             my_simulation_after_average = simulation_after_averages[my_simulation_number]
+            del simulation_after_averages[my_simulation_number]
 
-        for p in range(simulation_size):
-            if skip_myself == False and p == my_simulation_number:
+        avg_list = []
+        avg_list.append(my_simulation_after_average)
+        avg_list.extend(simulation_after_averages)
+        ranks = self.rank_array(avg_list)
+        action_scale = self.env.action_space / len(ranks)
+        action_weight = [0 for action in range(self.env.action_space)]
+
+        my_rank = ranks[0]
+        action_weight[len(avg_list) - int(my_rank * action_scale) -
+                      1] = int(my_simulation_after_average * 10)
+        my_weight = int(my_simulation_after_average * 10)
+
+        for p in range(len(avg_list)):
+            if skip_myself == False and p == 0:
                 continue
-            if my_simulation_after_average + (my_simulation_after_average * self.judgement_flexibility) > simulation_after_averages[p]:
-                my_rank -= 1
-        if my_rank == (simulation_size + skip_count):
-            return 0
-        elif my_rank == 1:
-            return 1
-        else:
-            return (1 / simulation_size) * ((simulation_size + skip_count) - my_rank)
+            if my_rank < ranks[p]:
+                weight = avg_list[p] / my_simulation_after_average * my_weight
+            else:
+                weight = my_simulation_after_average / avg_list[p] * my_weight
+            action_weight[len(avg_list) - int(ranks[p] *
+                                              action_scale) - 1] = weight
+
+        for action_num in range(len(action_weight)):
+            if action_weight[action_num] == 0:
+                prev_action_weight = action_weight[action_num-1]
+                next_action_weight = action_weight[action_num+1]
+                middle_weight = (prev_action_weight + next_action_weight) / 2
+                action_weight[action_num] = middle_weight
+        return action_weight
+
+        # for p in range(simulation_size):
+        #    if skip_myself == False and p == my_simulation_number:
+        #        continue
+        #    if my_simulation_after_average + (my_simulation_after_average * self.judgement_flexibility) > simulation_after_averages[p]:
+        #        my_rank -= 1
+        # if my_rank == (simulation_size + skip_count):
+        #    return 0
+        # elif my_rank == 1:
+        #    return 1
+        # else:
+        #    return (1 / simulation_size) * ((simulation_size + skip_count) - my_rank)
 
     def select_action(self, state):
-        self.simulate(state)
-        select_weight = self.state_analyze()
         if isinstance(self.env.action_space, list):
             action_table = self.env.action_space
         else:
             action_table = [action for action in range(self.env.action_space)]
-        choice = random.choice(action_table)
-        select_skew_random = 0
-        for i in range(action_table):
-            if action_table[i] == choice:
-                select_skew_random = i
-                break
-        action_idx = round((len(action_table) - 1) * select_weight)
-        action_middle = int(len(action_table) / 2)
-        if action_middle < select_skew_random:
-            if select_weight != 0 and select_weight != 1:
-                action_idx += 1
+        self.env.action_space = len(action_table)
+        self.simulate(state)
+        action_weight = self.state_analyze()
+
+        # choice = random.choice(action_table)
+        # select_skew_random = 0
+        # for i in range(len(action_table)):
+        #    if action_table[i] == choice:
+        #        select_skew_random = i
+        #        break
+        # action_idx = round((len(action_table) - 1) * select_weight)
+        # action_middle = int(len(action_table) / 2)
+        # if action_middle < select_skew_random:
+        #    if select_weight != 0 and select_weight != 1:
+        #        action_idx += 1
         return action_table[action_idx]
 
     # def update_step(self, state, action, reward, done, next_state):
-    #    """
-    #    Updates the provided state, action, reward, done, and next_state.
-
-    #    :param state: The current state of the environment.
-    #    :type state: numpy.ndarray
-    #    :param action: The action taken by the agent.
-    #    :type action: int
-    #    :param reward: The reward for the current step.
-    #    :type reward: float
-    #    :param done: Flag to mark if the episode is done or not.
-    #    :type done: bool
-    #    :param next_state: The next state after the current action.
-    #    :type next_state: numpy.ndarray
-    #    """
-
-    #    self.update_reward(reward)
-
-    #    self.states.append(state)
-    #    self.actions.append(action)
-    #    self.rewards.append(reward)
-    #    self.dones.append(done)
-    #    self.next_states.append(next_state)
-
-    #    if done:
-    #        self.update()
+    def update_step(self, reward, done):
+        """
+        Updates the provided state, action, reward, done, and next_state.
+        :param state: The current state of the environment.
+        :type state: numpy.ndarray
+        :param action: The action taken by the agent.
+        :type action: int
+        :param reward: The reward for the current step.
+        :type reward: float
+        :param done: Flag to mark if the episode is done or not.
+        :type done: bool
+        :param next_state: The next state after the current action.
+        :type next_state: numpy.ndarray
+        """
+        self.update_reward(reward)
+        # self.states.append(state)
+        # self.actions.append(action)
+        # self.rewards.append(reward)
+        # self.dones.append(done)
+        # self.next_states.append(next_state)
+        if done:
+            self.update()
 
     def update(self):
         pass
@@ -246,9 +293,30 @@ class AgentMIM(AgentCustom):
         self.learn()
 
     def learn(self):
-        state = self.env.reset()
-        Logger.verb('mim:learn:state', state)
-        self.select_action(state)
+        """
+        Train the agent.
+        """
+        self.total_reward = 0
+        for episode in range(self.max_episodes):
+            self.episode = episode
+            state = self.learn_reset()
+            for t in range(self.max_timesteps):
+                state = self._check_state(state)
+
+                # Select an action
+                action = self.select_action(state)
+                Logger.verb('agents:mim:learn:action', action)
+                # Take a step in the environment
+                next_state, reward, done = self.env.step(action)
+                # Update the agent's experience
+                self.update_step(reward, done)
+                # Update the network parameters at the end of the episode
+                if done:
+                    self.update()
+                    self.learn_check()
+                    break
+                state = next_state
+            self.episode += 1
 
     def load(self, file_name):
         self.load_model(file_name)
