@@ -85,16 +85,17 @@ class AgentMIM(AgentCustom):
                     break
 
         Logger.verb('mim:simulation_table', simulation_table)
-        for p in range(len(simulation_table)):
+        for index in range(len(simulation_table)):
             sim_result = 0
-            for idx in range(len(simulation_table[p])):
-                sim_result += simulation_table[p][idx] * idx
+            for sub_index in range(len(simulation_table[index])):
+                sim_result += simulation_table[index][sub_index] * \
+                    sub_index + 0.01
             self.simulation_totals.append(sim_result)
             self.simulation_averages.append(
-                sim_result / self.simulation_iteration_indexes[p])
-            self.standard_deviations.append(np.std(simulation_table[p]))
+                sim_result / self.simulation_iteration_indexes[index])
+            self.standard_deviations.append(np.std(simulation_table[index]))
             skewness, kurtosis = self.calc_skewness_kurtosis(
-                simulation_table[p])
+                simulation_table[index])
             self.skews.append(skewness)
             self.kurtosises.append(kurtosis)
 
@@ -114,143 +115,143 @@ class AgentMIM(AgentCustom):
 
         return skewness, kurtosis
 
-    def rank_array(array):
+    def rank_array(self, array):
         temp = array.argsort()
         ranks = np.empty_like(temp)
         ranks[temp] = len(array) - (np.arange(len(array)))
 
         return ranks
 
-    def state_analyze(self):
+    def calculate_weight_adjustment_factors(self, simulation_size):
+        weight_adjustment_factors = [1] * simulation_size
+        factors = [0.25, 0.15, 0.1]
+        averages = [self.standard_deviations_avg,
+                    self.skews_avg, self.kurtosises_avg]
+        values = [self.standard_deviations, self.skews, self.kurtosises]
+
+        for index in range(simulation_size):
+            for factor, average, value in zip(factors, averages, values):
+                if average < value[index]:
+                    weight_adjustment_factor = factor * average / value[index]
+                    weight_adjustment_factors[index] += weight_adjustment_factor - factor
+        return weight_adjustment_factors
+
+    def update_averages(self, total_size):
+        factors = [self.standard_deviations_avg,
+                   self.skews_avg, self.kurtosises_avg]
+        values = [self.standard_deviations, self.skews, self.kurtosises]
+        for factor, value in zip(factors, values):
+            factor = (
+                factor * self.simulation_iteration_indexes_count + sum(value)) / total_size
+        self.simulation_iteration_indexes_count = total_size
+
+    def calculate_action_weights(self, adjusted_averages, skip_myself):
+        Logger.verb('mim:calculate_action_weights:adjusted_averages',
+                    adjusted_averages)
+        Logger.verb('mim:calculate_action_weights:my_simulation_average',
+                    self.my_simulation_average)
+        averages_table = []
+        if skip_myself:
+            averages_table.insert(0, self.my_simulation_average)
+        averages_table.extend(adjusted_averages)
+        ranks = self.rank_array(np.array(averages_table))
+
+        base_weight = int(1 / len(ranks) * 100)
+        action_scale = self.env.action_space / len(ranks)
+        action_weights = [base_weight for _ in range(self.env.action_space)]
+
+        my_rank = ranks[0]
+        my_average = self.my_simulation_average
+        if my_rank != 1:
+            my_rank = round(my_rank * action_scale)
+
+        for rank_idx in range(len(ranks)):
+            if rank_idx != 0:
+                rank_diff = abs(my_rank - ranks[rank_idx])
+                if my_rank > ranks[rank_idx]:
+                    if ranks[rank_idx] != 1:
+                        action_num = round(ranks[rank_idx] * action_scale)
+                    else:
+                        action_num = 1
+                    average_weight = my_average / \
+                        action_weights[action_num-1] * (0.66 ** rank_diff)
+                else:
+                    action_num = round(ranks[rank_idx] * action_scale)
+                    average_weight = action_weights[action_num-1] / \
+                        my_average * (1 * (0.75 ** (rank_diff - 1)))
+
+                Logger.verb('mim:calculate_action_weights',
+                            f'{average_weight}, {action_scale}, {action_num}')
+
+                diff_weight = action_weights[action_num-1] - average_weight
+                action_weights[action_num-1] -= diff_weight
+                action_weights[my_rank-1] += diff_weight
+
+        #    weight = adjusted_averages[p] / adjusted_averages[0] * \
+        #        10 if ranks[0] < ranks[p] else adjusted_averages[0] / \
+        #        adjusted_averages[p] * 10
+        #    action_weights[len(adjusted_averages) -
+        #                   int(ranks[p] * action_scale) - 1] = weight
+
+        for action_num in range(len(action_weights)):
+            if action_weights[action_num] == 0:
+                prev_action_weights = action_weights[action_num-1]
+                next_action_weights = action_weights[action_num+1]
+                middle_weight = (prev_action_weights + next_action_weights) / 2
+                action_weights[action_num] = round(middle_weight)
+
+        Logger.verb('mim:calculate_action_weights:action_weights',
+                    action_weights)
+        return action_weights
+
+    def calculate_weights(self):
         skip_myself = False
         skip_count = 0
-        Logger.verb('mim:state_analyze',
-                    f'{self.simulation_iteration_indexes}, {self.my_simulation_number}')
+
         if self.simulation_iteration_indexes[self.my_simulation_number] <= 1:
             skip_myself = True
             skip_count = 1
 
-        reliability = [1 for p in range(len(
-            self.simulation_iteration_indexes) - skip_count)]
-
-        simulation_after_averages = [0 for p in range(len(
-            self.simulation_iteration_indexes) - skip_count)]
-
-        action_weight = [0 for weight in range(self.env.action_space)]
-
-        my_simulation_number = self.my_simulation_number
-        my_simulation_average = self.simulation_averages[my_simulation_number]
-        my_simulation_after_average = 0
-        my_standard_deviation = self.standard_deviations[my_simulation_number]
-        my_skew = self.skews[my_simulation_number]
-        my_kurtosises = self.kurtosises[my_simulation_number]
-        my_rank = len(self.simulation_averages)
+        self.my_simulation_average = self.simulation_averages[self.my_simulation_number]
 
         if skip_myself:
-            del self.simulation_iteration_indexes[my_simulation_number]
-            del self.simulation_averages[my_simulation_number]
-            del self.standard_deviations[my_simulation_number]
-            del self.skews[my_simulation_number]
-            del self.kurtosises[my_simulation_number]
+            del self.simulation_iteration_indexes[self.my_simulation_number]
+            del self.simulation_averages[self.my_simulation_number]
+            del self.standard_deviations[self.my_simulation_number]
+            del self.skews[self.my_simulation_number]
+            del self.kurtosises[self.my_simulation_number]
 
         simulation_size = len(self.simulation_averages)
         simulation_total_size = self.simulation_iteration_indexes_count + simulation_size
 
-        self.standard_deviations_avg = (self.standard_deviations_avg * self.simulation_iteration_indexes_count + sum(
-            self.standard_deviations)) / simulation_total_size
+        self.update_averages(simulation_total_size)
+        weight_adjustment_factors = self.calculate_weight_adjustment_factors(
+            simulation_size)
 
-        self.skews_avg = (self.skews_avg * self.simulation_iteration_indexes_count + sum(
-            self.skews)) / simulation_total_size
+        adjusted_averages = [average * factor for average,
+                             factor in zip(self.simulation_averages, weight_adjustment_factors)]
+        action_weights = self.calculate_action_weights(
+            adjusted_averages, skip_myself)
 
-        self.kurtosises_avg = (self.kurtosises_avg * self.simulation_iteration_indexes_count + sum(
-            self.kurtosises)) / simulation_total_size
-
-        self.simulation_iteration_indexes_count = simulation_total_size
-
-        for p in range(simulation_size):
-            if self.standard_deviations_avg < self.standard_deviations[p]:
-                reliability[p] -= 0.25
-                reliability[p] += 0.25 * self.standard_deviations_avg / \
-                    self.standard_deviations[p]
-            if self.skews_avg < self.skews[p]:
-                reliability[p] -= 0.15
-                reliability[p] += 0.15 * self.skews_avg / self.skews[p]
-            if self.kurtosises_avg < self.kurtosises[p]:
-                reliability[p] -= 0.1
-                reliability[p] += 0.1 * \
-                    self.kurtosises_avg / self.kurtosises[p]
-            simulation_after_averages[p] = self.simulation_averages[p] * \
-                reliability[p]
-
-        if skip_myself:
-            my_simulation_after_average = my_simulation_average
-        else:
-            my_simulation_after_average = simulation_after_averages[my_simulation_number]
-            del simulation_after_averages[my_simulation_number]
-
-        avg_list = []
-        avg_list.append(my_simulation_after_average)
-        avg_list.extend(simulation_after_averages)
-        ranks = self.rank_array(avg_list)
-        action_scale = self.env.action_space / len(ranks)
-        action_weight = [0 for action in range(self.env.action_space)]
-
-        my_rank = ranks[0]
-        action_weight[len(avg_list) - int(my_rank * action_scale) -
-                      1] = int(my_simulation_after_average * 10)
-        my_weight = int(my_simulation_after_average * 10)
-
-        for p in range(len(avg_list)):
-            if skip_myself == False and p == 0:
-                continue
-            if my_rank < ranks[p]:
-                weight = avg_list[p] / my_simulation_after_average * my_weight
-            else:
-                weight = my_simulation_after_average / avg_list[p] * my_weight
-            action_weight[len(avg_list) - int(ranks[p] *
-                                              action_scale) - 1] = weight
-
-        for action_num in range(len(action_weight)):
-            if action_weight[action_num] == 0:
-                prev_action_weight = action_weight[action_num-1]
-                next_action_weight = action_weight[action_num+1]
-                middle_weight = (prev_action_weight + next_action_weight) / 2
-                action_weight[action_num] = middle_weight
-        return action_weight
-
-        # for p in range(simulation_size):
-        #    if skip_myself == False and p == my_simulation_number:
-        #        continue
-        #    if my_simulation_after_average + (my_simulation_after_average * self.judgement_flexibility) > simulation_after_averages[p]:
-        #        my_rank -= 1
-        # if my_rank == (simulation_size + skip_count):
-        #    return 0
-        # elif my_rank == 1:
-        #    return 1
-        # else:
-        #    return (1 / simulation_size) * ((simulation_size + skip_count) - my_rank)
+        return action_weights
 
     def select_action(self, state):
+        action_list = []
         if isinstance(self.env.action_space, list):
             action_table = self.env.action_space
         else:
-            action_table = [action for action in range(self.env.action_space)]
+            action_table = list(range(self.env.action_space))
         self.env.action_space = len(action_table)
         self.simulate(state)
-        action_weight = self.state_analyze()
+        action_weights = self.calculate_weights()
+        Logger.verb('mim:select_action', action_weights)
+        for action_index in range(len(action_weights)):
+            for _ in range(int(action_weights[action_index])):
+                action_list.append(action_index)
 
-        # choice = random.choice(action_table)
-        # select_skew_random = 0
-        # for i in range(len(action_table)):
-        #    if action_table[i] == choice:
-        #        select_skew_random = i
-        #        break
-        # action_idx = round((len(action_table) - 1) * select_weight)
-        # action_middle = int(len(action_table) / 2)
-        # if action_middle < select_skew_random:
-        #    if select_weight != 0 and select_weight != 1:
-        #        action_idx += 1
-        return action_table[action_idx]
+        random.shuffle(action_list)
+        choice = random.choice(action_list)
+        return action_table[choice]
 
     # def update_step(self, state, action, reward, done, next_state):
     def update_step(self, reward, done):
