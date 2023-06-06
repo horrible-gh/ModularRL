@@ -11,7 +11,7 @@ pip install modular_rl
 ## Features
 
 -   Implementations of various reinforcement learning algorithms,
-    such as Proximal Policy Optimization (PPO) and Monte Carlo Tree Search (MCTS)
+    such as Proximal Policy Optimization (PPO), Monte Carlo Tree Search (MCTS), Monte Carlo Information Set (MCIS), and Modular's sIMulator (MIM)
 -   Customizable agent settings and network architectures
 -   Modular structure for easy adaptation and extension across different algorithms
 -   Model saving and loading functionality for easy reuse of trained models
@@ -20,11 +20,15 @@ pip install modular_rl
 
 -   Proximal Policy Optimization (PPO)
 -   Monte Carlo Tree Search (MCTS)
+-   Monte Carlo Information Set (MCIS)
+-   Modular's sIMulator (MIM)
 
 Refer to the respective agent classes for each algorithm:
 
 -   AgentPPO (Modular)
 -   AgentMCTS
+-   AgentMCIS (Modular)
+-   AgentMIM (Modular)
 
 ## Example Usage
 
@@ -127,7 +131,7 @@ loaded_agent.load_model("my_saved_model.pth")
 
 ## Key Classes
 
--   AgentPPO, AgentMCTS: The main agent classes implementing various reinforcement learning algorithms.
+-   AgentPPO, AgentMCTS, AgentMCIS, AgentMIM: The main agent classes implementing various reinforcement learning algorithms.
 -   PolicyNetwork, ValueNetwork, ActorCriticNetwork: Customizable neural networks for the agent's policy and value functions.
 -   AgentSettings: A configuration class for setting up the agents.
 

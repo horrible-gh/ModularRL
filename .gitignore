@@ -9,7 +9,7 @@ work
 test.pth
 data
 reinstall_local.*
-
+release.*
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

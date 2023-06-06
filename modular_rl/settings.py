@@ -17,6 +17,7 @@ from modular_rl.params.mcts import ParamMCTS
 from modular_rl.params.mcis import ParamMCIS
 from modular_rl.params.mim import ParamMIM
 
+
 class AgentSettings:
     default_ppo = ParamPPO.default
     default_ppo_modular = ParamPPO.default_modular
@@ -25,3 +26,4 @@ class AgentSettings:
     default_mcis = ParamMCIS.default
     default_mcis_modular = ParamMCIS.default_modular
     default_mim = ParamMIM.default
+    default_mim_modular = ParamMIM.default_modular
