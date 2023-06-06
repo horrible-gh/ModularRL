@@ -89,7 +89,7 @@ class AgentMIM(AgentCustom):
             sim_result = 0
             for sub_index in range(len(simulation_table[index])):
                 sim_result += simulation_table[index][sub_index] * \
-                    sub_index + 0.01
+                    sub_index + 0.001
             self.simulation_totals.append(sim_result)
             self.simulation_averages.append(
                 sim_result / self.simulation_iteration_indexes[index])
@@ -124,7 +124,7 @@ class AgentMIM(AgentCustom):
 
     def calculate_weight_adjustment_factors(self, simulation_size):
         weight_adjustment_factors = [1] * simulation_size
-        factors = [0.25, 0.15, 0.1]
+        factors = [0.125, 0.075, 0.05]
         averages = [self.standard_deviations_avg,
                     self.skews_avg, self.kurtosises_avg]
         values = [self.standard_deviations, self.skews, self.kurtosises]
@@ -154,44 +154,59 @@ class AgentMIM(AgentCustom):
         if skip_myself:
             averages_table.insert(0, self.my_simulation_average)
         averages_table.extend(adjusted_averages)
+        Logger.verb('mim:calculate_action_weights:averages_table',
+                    averages_table)
         ranks = self.rank_array(np.array(averages_table))
+        Logger.verb('mim:calculate_action_weights:ranks', f'{ranks}')
 
-        base_weight = int(1 / len(ranks) * 100)
+        base_weight = int(1 / self.env.action_space * 100)
         action_scale = self.env.action_space / len(ranks)
         action_weights = [base_weight for _ in range(self.env.action_space)]
+        check_weights = [False for _ in range(self.env.action_space)]
+
+        Logger.verb('mim:calculate_action_weights:check_base_weight',
+                    f'{base_weight},{action_scale},{action_weights}')
 
         my_rank = ranks[0]
         my_average = self.my_simulation_average
-        if my_rank != 1:
-            my_rank = round(my_rank * action_scale)
+        my_action_rank = my_rank
+        my_action_rank = self.env.action_space - \
+            round(my_rank * action_scale)
 
         for rank_idx in range(len(ranks)):
+            Logger.verb('mim:calculate_action_weights:rank_idx',
+                        rank_idx)
             if rank_idx != 0:
                 rank_diff = abs(my_rank - ranks[rank_idx])
-                if my_rank > ranks[rank_idx]:
-                    if ranks[rank_idx] != 1:
-                        action_num = round(ranks[rank_idx] * action_scale)
-                    else:
-                        action_num = 1
-                    average_weight = my_average / \
-                        action_weights[action_num-1] * (0.66 ** rank_diff)
+                Logger.verb('mim:calculate_action_weights:rank_diff',
+                            rank_diff)
+                action_num = self.env.action_space - \
+                    round(ranks[rank_idx] * action_scale)
+                Logger.verb('mim:calculate_action_weights:action_num',
+                            action_num)
+                if my_rank < ranks[rank_idx]:
+                    average_weight = (averages_table[action_num] /
+                                      my_average) * (0.5 ** rank_diff)
                 else:
-                    action_num = round(ranks[rank_idx] * action_scale)
-                    average_weight = action_weights[action_num-1] / \
-                        my_average * (1 * (0.75 ** (rank_diff - 1)))
+                    average_weight = (my_average /
+                                      averages_table[action_num]) * (0.5 ** rank_diff)
 
-                Logger.verb('mim:calculate_action_weights',
-                            f'{average_weight}, {action_scale}, {action_num}')
+                Logger.verb('mim:calculate_action_weights:scale,num',
+                            f'{action_scale}, {action_num},{average_weight}')
 
-                diff_weight = action_weights[action_num-1] - average_weight
-                action_weights[action_num-1] -= diff_weight
-                action_weights[my_rank-1] += diff_weight
-
-        #    weight = adjusted_averages[p] / adjusted_averages[0] * \
-        #        10 if ranks[0] < ranks[p] else adjusted_averages[0] / \
-        #        adjusted_averages[p] * 10
-        #    action_weights[len(adjusted_averages) -
-        #                   int(ranks[p] * action_scale) - 1] = weight
+                if check_weights[action_num] == False:
+                    check_weights[action_num] = True
+                    expect_weight = action_weights[action_num] * \
+                        average_weight
+                    weight_diff = action_weights[action_num] - expect_weight
+                    Logger.verb('mim:calculate_action_weights:weight_diff',
+                                f'{weight_diff}, {expect_weight}')
+                    action_weights[action_num] -= weight_diff
+                    if action_weights[action_num] < 1:
+                        action_weights[action_num] = 1
+                    action_weights[my_action_rank] += weight_diff
+                    Logger.verb('mim:calculate_action_weights:scale,num',
+                                f'{action_num}, {action_weights[action_num]}, {my_action_rank}, {action_weights[my_action_rank]}, {average_weight}')
 
         for action_num in range(len(action_weights)):
             if action_weights[action_num] == 0:
