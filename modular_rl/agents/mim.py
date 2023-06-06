@@ -19,8 +19,10 @@ class AgentMIM(AgentCustom):
             'score_column', ParamMIM.default['score_column'])
         self.simulation_iterations = setting.get(
             'simulation_iterations', ParamMIM.default['simulation_iterations'])
-        self.judgement_flexibility = setting.get(
-            'judgement_flexibility', ParamMIM.default['judgement_flexibility'])
+        self.superior_rank_adjustment_factor = setting.get(
+            'superior_rank_adjustment_factor', ParamMIM.default['superior_rank_adjustment_factor'])
+        self.inferior_rank_adjustment_factor = setting.get(
+            'inferior_rank_adjustment_factor', ParamMIM.default['inferior_rank_adjustment_factor'])
         self.simulation_iteration_indexes_count = 0
         self.standard_deviations_avg = 0
         self.skews_avg = 0
@@ -180,19 +182,20 @@ class AgentMIM(AgentCustom):
                 rank_diff = abs(my_rank - ranks[rank_idx])
                 Logger.verb('mim:calculate_action_weights:rank_diff',
                             rank_diff)
+                if my_rank < ranks[rank_idx]:
+                    average_weight = (averages_table[rank_idx] /
+                                      my_average) * (self.superior_rank_adjustment_factor ** rank_diff)
+                else:
+                    average_weight = (my_average /
+                                      averages_table[rank_idx]) * (self.inferior_rank_adjustment_factor ** rank_diff)
+
+                Logger.verb('mim:calculate_action_weights:scale,num',
+                            f'{action_scale}, {rank_idx}, {average_weight}')
+
                 action_num = self.env.action_space - \
                     round(ranks[rank_idx] * action_scale)
                 Logger.verb('mim:calculate_action_weights:action_num',
                             action_num)
-                if my_rank < ranks[rank_idx]:
-                    average_weight = (averages_table[action_num] /
-                                      my_average) * (0.5 ** rank_diff)
-                else:
-                    average_weight = (my_average /
-                                      averages_table[action_num]) * (0.5 ** rank_diff)
-
-                Logger.verb('mim:calculate_action_weights:scale,num',
-                            f'{action_scale}, {action_num},{average_weight}')
 
                 if check_weights[action_num] == False:
                     check_weights[action_num] = True
