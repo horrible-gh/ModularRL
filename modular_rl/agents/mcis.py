@@ -1,14 +1,33 @@
 
-import gym
+"""
+ModularRL project
+
+Copyright (c) 2023 horrible-gh
+
+Class AgentMCIS is an implementation of the Monte Carlo Importance Sampling (MCIS) algorithm.
+The algorithm is used for solving problems of sequential decision making under uncertainty.
+It takes an environment and a setting configuration as inputs, initializes neural network instances and optimizers,
+and sets various learning parameters.
+This class has methods to predict an action given a state, perform a learning step, update the neural network parameters,
+save and load a checkpoint, and reset learning parameters.
+The class also has instance variables to keep track of episode and total rewards, previous reward, and average reward.
+
+Importance Sampling is used to estimate the properties of a particular target distribution, given some observed data and a proposal distribution.
+This implementation makes use of Monte Carlo methods, which rely on repeated random sampling to obtain numerical results.
+
+This software includes the following third-party libraries:
+Gym (MIT License): https://github.com/openai/gym - Copyright (c) OpenAI.
+NumPy (BSD License): https://numpy.org - Copyright (c) NumPy Developers.
+PyTorch (BSD-Style License): https://pytorch.org/ - Copyright (c) Facebook.
+"""
+
 import torch
-import torch.optim as optim
 from torch.distributions import Categorical
 import torch.nn.functional as F
-from modular_rl.networks.actor_critic import ActorCriticNetwork
 from modular_rl.util.node import Node
 from modular_rl.agents._agent import Agent
-from LogAssist.log import Logger
 import numpy as np
+
 
 class AgentMCIS(Agent):
     def __init__(self, env, setting):
@@ -36,7 +55,6 @@ class AgentMCIS(Agent):
 
         # Save selected learning data separately
         # self.state_tensor
-
 
     def update_step(self, state, action, reward, done, next_state):
         """
@@ -97,13 +115,12 @@ class AgentMCIS(Agent):
             state_tensor = self.check_tensor(node.state).to(self.device)
             _, value = self.actor_critic_net(state_tensor)
             self.backpropagate(search_path, value.item(), node.done)
-        root_state_tensor = self.check_tensor(root.state).to(self.device)  # This line is added
+        root_state_tensor = self.check_tensor(
+            root.state).to(self.device)  # This line is added
         action_probs, _ = self.actor_critic_net(root_state_tensor)
-        chosen_action = np.random.choice(range(len(action_probs)), p=action_probs.detach().numpy())
+        chosen_action = np.random.choice(
+            range(len(action_probs)), p=action_probs.detach().numpy())
         return chosen_action
-
-
-
 
     def backpropagate(self, search_path, reward, done):
         """
@@ -122,7 +139,6 @@ class AgentMCIS(Agent):
                 state_tensor = self.check_tensor(node.state).to(self.device)
                 _, reward = self.actor_critic_net(state_tensor)
                 reward = reward.item()
-
 
     def learn(self):
         """
@@ -163,7 +179,6 @@ class AgentMCIS(Agent):
 
             self.episode += 1
 
-
     def compute_loss(self, state, action, reward, next_state, done):
         '''
         This function computes the actor and critic loss using the provided state, action, reward, next_state, and done variables.
@@ -189,14 +204,14 @@ class AgentMCIS(Agent):
         # Predict action probabilities and values
         action_probs, values = self.actor_critic_net(state)
 
-        #Logger.verb('agents:mcis:compute_loss',f'{self.actor_critic_net(next_state)}')
+        # Logger.verb('agents:mcis:compute_loss',f'{self.actor_critic_net(next_state)}')
 
         # Compute the value loss
         actor_output, critic_output = self.actor_critic_net(next_state)
-        target_values = reward + self.gamma * torch.mean(critic_output) * (1 - done)
+        target_values = reward + self.gamma * \
+            torch.mean(critic_output) * (1 - done)
         target_values = target_values.unsqueeze(1)
         critic_loss = F.mse_loss(values, target_values.detach())
-
 
         # Compute the policy loss
         m = Categorical(action_probs)
@@ -217,17 +232,20 @@ class AgentMCIS(Agent):
         if not self.states:  # Check if the states list is empty
             return
 
-        #Logger.verb('agents:mcis:update',f'states={self.states},actions={self.actions},rewards={self.rewards},dones={self.dones}')
+        # Logger.verb('agents:mcis:update',f'states={self.states},actions={self.actions},rewards={self.rewards},dones={self.dones}')
 
         # Prepare data
-        states_tensor = torch.stack([self.check_tensor(state) for state in self.states]).to(self.device)
+        states_tensor = torch.stack(
+            [self.check_tensor(state) for state in self.states]).to(self.device)
         actions_tensor = torch.Tensor(self.actions).to(self.device)
         rewards_tensor = torch.Tensor(self.rewards).to(self.device)
-        next_states_tensor = torch.stack([self.check_tensor(state) for state in self.next_states]).to(self.device)
+        next_states_tensor = torch.stack(
+            [self.check_tensor(state) for state in self.next_states]).to(self.device)
         dones_tensor = torch.Tensor(self.dones).to(self.device)
 
         # Compute loss
-        actor_loss, critic_loss = self.compute_loss(states_tensor, actions_tensor, rewards_tensor, next_states_tensor, dones_tensor)
+        actor_loss, critic_loss = self.compute_loss(
+            states_tensor, actions_tensor, rewards_tensor, next_states_tensor, dones_tensor)
 
         # Compute gradients and update network parameters
         self.actor_critic_optimizer.zero_grad()

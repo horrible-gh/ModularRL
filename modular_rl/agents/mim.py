@@ -1,3 +1,19 @@
+"""
+ModularRL project
+
+Copyright (c) 2023 horrible-gh
+
+Class AgentMIM is an implementation of the Modular's sIMulator (MIM) algorithm.
+It takes an environment and a setting configuration as inputs, initializes various simulation parameters,
+and sets various simulation elements such as fixed states, unknown spaces, simulation states, excluded states, score calculation method, and simulation number.
+
+It has methods to perform a simulation given a state, calculate skewness and kurtosis of the simulation result, rank the simulation result array, and adjust weights based on the simulation result.
+The class also keeps track of the simulation iteration count, average standard deviations, skews, and kurtosises of the simulation results.
+
+This software includes the following third-party libraries:
+NumPy (BSD License): https://numpy.org - Copyright (c) NumPy Developers.
+"""
+
 import random
 import numpy as np
 from LogAssist.log import Logger
@@ -7,29 +23,55 @@ from modular_rl.params.mim import ParamMIM
 
 class AgentMIM(AgentCustom):
     def __init__(self, env, setting):
+        """
+        Initialize the AgentMIM class with the specified environment and settings.
+
+        :param env: The environment to use for training.
+        :type env: gym.Env or None
+        :param setting: The settings for the MIM algorithm.
+        :type setting: AgentSettings
+        """
         super().__init__(env, setting)
+        # The name to use for the fixed states in the simulation.
         self.fixed_states_name = 'fixed_states'
+        # The name to use for the unknown spaces in the simulation.
         self.unknown_spaces_name = 'unknown_spaces'
+        # The name to use for the simulation states.
         self.simulation_states_name = 'simulation_states'
+        # The name to use for the excluded states in the simulation.
         self.excluded_states_name = 'excluded_states'
+        # The name to use for the simulation number.
         self.my_simulation_number_name = 'my_simulation_number'
+        # The name to use for the score table.
         self.score_table_name = 'score_table'
+        # The name to use for the score calculation callback function.
         self.score_calculation_callback_name = 'score_calculation_callback'
-        self.score_column = setting.get(
+        self.score_column = setting.get(  # The name of the score column in the score table.
             'score_column', ParamMIM.default['score_column'])
-        self.simulation_iterations = setting.get(
+        self.simulation_iterations = setting.get(  # The number of iterations for each simulation.
             'simulation_iterations', ParamMIM.default['simulation_iterations'])
-        self.superior_rank_adjustment_factor = setting.get(
+        self.superior_rank_adjustment_factor = setting.get(  # The adjustment factor applied to actions that are ranked superior.
             'superior_rank_adjustment_factor', ParamMIM.default['superior_rank_adjustment_factor'])
-        self.inferior_rank_adjustment_factor = setting.get(
+        self.inferior_rank_adjustment_factor = setting.get(  # The adjustment factor applied to actions that are ranked inferior.
             'inferior_rank_adjustment_factor', ParamMIM.default['inferior_rank_adjustment_factor'])
+        # Counter for the number of simulation iterations.
         self.simulation_iteration_indexes_count = 0
+        # Average of standard deviations for all simulations.
         self.standard_deviations_avg = 0
-        self.skews_avg = 0
-        self.kurtosises_avg = 0
-        self.reset()
+        self.skews_avg = 0  # Average skewness for all simulations.
+        self.kurtosises_avg = 0  # Average kurtosis for all simulations.
+        self.reset()  # Reset the simulation results.
 
     def simulate(self, state):
+        """
+        Simulates the given state with various conditions and adjustments.
+        It extracts the required elements from the state, performs multiple simulations,
+        calculates the score, and records the statistics of each simulation.
+
+        :param state: The state to be simulated.
+        :type state: dict
+        """
+
         required_state_elements = {
             self.fixed_states_name: 'fixed_state',
             self.unknown_spaces_name: 'unknown_spaces',
@@ -108,6 +150,15 @@ class AgentMIM(AgentCustom):
         Logger.verb('simulator:kurtosises', self.kurtosises)
 
     def calc_skewness_kurtosis(self, data):
+        """
+        Calculates the skewness and kurtosis of the given data.
+
+        :param data: The data for which to calculate skewness and kurtosis.
+        :type data: list or array-like
+        :return: The skewness and kurtosis of the data.
+        :rtype: tuple
+        """
+
         n = len(data)
         mean = np.mean(data)
         std_dev = np.std(data)
@@ -118,6 +169,15 @@ class AgentMIM(AgentCustom):
         return skewness, kurtosis
 
     def rank_array(self, array):
+        """
+        Ranks the elements in the array in descending order.
+
+        :param array: The array to be ranked.
+        :type array: list or array-like
+        :return: The ranks of the elements in the array.
+        :rtype: numpy.ndarray
+        """
+
         temp = array.argsort()
         ranks = np.empty_like(temp)
         ranks[temp] = len(array) - (np.arange(len(array)))
@@ -125,6 +185,15 @@ class AgentMIM(AgentCustom):
         return ranks
 
     def calculate_weight_adjustment_factors(self, simulation_size):
+        """
+        Calculates the adjustment factors for the weights of the simulations.
+
+        :param simulation_size: The size of the simulation.
+        :type simulation_size: int
+        :return: The adjustment factors for the weights of the simulations.
+        :rtype: list
+        """
+
         weight_adjustment_factors = [1] * simulation_size
         factors = [0.125, 0.075, 0.05]
         averages = [self.standard_deviations_avg,
@@ -139,6 +208,13 @@ class AgentMIM(AgentCustom):
         return weight_adjustment_factors
 
     def update_averages(self, total_size):
+        """
+        Updates the averages of standard deviations, skews, and kurtosises.
+
+        :param total_size: The total size of the simulations.
+        :type total_size: int
+        """
+
         factors = [self.standard_deviations_avg,
                    self.skews_avg, self.kurtosises_avg]
         values = [self.standard_deviations, self.skews, self.kurtosises]
@@ -148,6 +224,17 @@ class AgentMIM(AgentCustom):
         self.simulation_iteration_indexes_count = total_size
 
     def calculate_action_weights(self, adjusted_averages, skip_myself):
+        """
+        Calculates the weights for each action.
+
+        :param adjusted_averages: The adjusted averages from the simulations.
+        :type adjusted_averages: list
+        :param skip_myself: Whether to skip the current instance in the calculation.
+        :type skip_myself: bool
+        :return: The weights for each action.
+        :rtype: list
+        """
+
         Logger.verb('mim:calculate_action_weights:adjusted_averages',
                     adjusted_averages)
         Logger.verb('mim:calculate_action_weights:my_simulation_average',
@@ -223,6 +310,13 @@ class AgentMIM(AgentCustom):
         return action_weights
 
     def calculate_weights(self):
+        """
+        Calculates the weights for the actions based on the simulation results.
+
+        :return: The calculated weights for each action.
+        :rtype: list
+        """
+
         skip_myself = False
         skip_count = 0
 
@@ -271,20 +365,15 @@ class AgentMIM(AgentCustom):
         choice = random.choice(action_list)
         return action_table[choice]
 
-    # def update_step(self, state, action, reward, done, next_state):
     def update_step(self, reward, done):
         """
-        Updates the provided state, action, reward, done, and next_state.
-        :param state: The current state of the environment.
-        :type state: numpy.ndarray
-        :param action: The action taken by the agent.
-        :type action: int
-        :param reward: The reward for the current step.
-        :type reward: float
-        :param done: Flag to mark if the episode is done or not.
+        This method updates the agent at each step in the environment.
+        It takes as input the reward from the last action and a boolean indicating if the episode has ended.
+
+        :param reward: The reward received after executing an action
+        :type reward: int/float
+        :param done: Indicates if the episode has ended
         :type done: bool
-        :param next_state: The next state after the current action.
-        :type next_state: numpy.ndarray
         """
         self.update_reward(reward)
         # self.states.append(state)
@@ -296,9 +385,17 @@ class AgentMIM(AgentCustom):
             self.update()
 
     def update(self):
+        """
+        This method is intended to update the internal model or values based on the collected rewards or experiences.
+        Currently, it's just a placeholder and does nothing. Further implementation is needed.
+        """
         pass
 
     def reset(self):
+        """
+        This method resets the agent's internal data. It's typically called at the end of each episode.
+        It clears out various lists that store information about the simulations.
+        """
         self.simulation_totals = []
         self.simulation_iteration_indexes = []
         self.simulation_averages = []
@@ -306,9 +403,10 @@ class AgentMIM(AgentCustom):
         self.skews = []
         self.kurtosises = []
 
-        # self.
-
     def train(self):
+        """
+        Train the agent.
+        """
         self.learn()
 
     def learn(self):
@@ -338,9 +436,21 @@ class AgentMIM(AgentCustom):
             self.episode += 1
 
     def load(self, file_name):
+        """
+        Loads the simulation statistics from the given file.
+
+        :param file_name: The name of the file from which to load the statistics.
+        :type file_name: str
+        """
         self.load_model(file_name)
 
     def load_model(self, file_name):
+        """
+        Loads the simulation statistics from the given file.
+
+        :param file_name: The name of the file from which to load the statistics.
+        :type file_name: str
+        """
         data_arr = np.load(file_name)
         self.simulation_iteration_indexes_count = data_arr[0]
         self.standard_deviations_avg = data_arr[1]
@@ -348,9 +458,21 @@ class AgentMIM(AgentCustom):
         self.kurtosises_avg = data_arr[3]
 
     def save(self, file_name):
+        """
+        Saves the simulation statistics to the given file.
+
+        :param file_name: The name of the file to which to save the statistics.
+        :type file_name: str
+        """
         self.save_model(file_name)
 
     def save_model(self, file_name):
+        """
+        Saves the simulation statistics to the given file.
+
+        :param file_name: The name of the file to which to save the statistics.
+        :type file_name: str
+        """
         data_arr = [
             self.simulation_iteration_indexes_count,
             self.standard_deviations_avg,

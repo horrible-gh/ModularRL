@@ -19,11 +19,8 @@ PyTorch  (BSD-Style License): https://pytorch.org/ - Copyright (c) Facebook.
 """
 
 import torch
-import torch.optim as optim
 from torch.distributions import Categorical
 import numpy as np
-from modular_rl.networks.policy import PolicyNetwork
-from modular_rl.networks.value import ValueNetwork
 from modular_rl.agents._agent import Agent
 from LogAssist.log import Logger
 
@@ -321,7 +318,6 @@ class AgentPPO(Agent):
             self.env.close()
         else:
             self.reset()
-
 
     def learn_next(self):
         """

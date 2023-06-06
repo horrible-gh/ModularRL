@@ -4,12 +4,9 @@ ModularRL project
 
 Copyright (c) 2023 horrible-gh
 
-Class AgentPPO is an implementation of the Proximal Policy Optimization (PPO) algorithm.
-It takes an environment and a setting configuration as inputs, initializes neural network instances and optimizers,
-and sets various learning parameters.
-It has methods to predict an action given a state, perform a learning step, update the neural network parameters,
-save and load a checkpoint, and reset learning parameters.
-The class also has instance variables to keep track of episode and total rewards, previous reward, and average reward.
+ModularRL is a Python library for creating and training reinforcement learning agents using various algorithms.
+The library is designed to be easily customizable and modular,
+allowing users to quickly set up and train agents for various environments without being limited to a specific algorithm.
 
 This software includes the following third-party libraries:
 Gym (MIT License): https://github.com/openai/gym - Copyright (c) OpenAI.
@@ -134,7 +131,6 @@ class Agent:
             state, _ = state  # Unpack the tuple
         return state
 
-
     def learn_reset(self):
         """
         Reset the agent's state and episode reward.
@@ -249,7 +245,7 @@ class Agent:
             next_state, reward, is_done, _, _ = step_output
         return next_state, reward, is_done
 
-    def update_reward(self, reward) :
+    def update_reward(self, reward):
         self.episode_reward += reward
         self.total_reward += reward
         self.prev_reward = reward

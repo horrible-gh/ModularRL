@@ -1,3 +1,16 @@
+# -*- coding: utf-8 -*-
+"""
+ModularRL project
+
+Copyright (c) 2023 horrible-gh
+
+ModularRL is a Python library for creating and training reinforcement learning agents using various algorithms.
+The library is designed to be easily customizable and modular,
+allowing users to quickly set up and train agents for various environments without being limited to a specific algorithm.
+
+"""
+
+
 from LogAssist.log import Logger
 from modular_rl.envs._custom import CustomEnv
 
