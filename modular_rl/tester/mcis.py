@@ -12,8 +12,10 @@ def init_mcis():
     agent = AgentMCIS(env, setting)
     agent.train()
 
+
 def init_mcis_modular():
-    mcis_agent = AgentMCIS(env=None, setting=AgentSettings.default_mcis_modular)
+    mcis_agent = AgentMCIS(
+        env=None, setting=AgentSettings.default_mcis_modular)
 
     mcis_agent.reset()
 
@@ -29,5 +31,5 @@ def init_mcis_modular():
     mcis_agent.update_step(state, action, 1, True, next_state)
     mcis_agent.learn_check()
 
-    mcis_agent.update()
-
+    # update_step function automatically updates if done is given a True option
+    # mcis_agent.update()

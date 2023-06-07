@@ -18,12 +18,10 @@ NumPy (BSD License): https://numpy.org - Copyright (c) NumPy Developers.
 PyTorch  (BSD-Style License): https://pytorch.org/ - Copyright (c) Facebook.
 """
 
-import gym
 import torch
-import torch.optim as optim
+import numpy as np
 from torch.distributions import Categorical
 import torch.nn.functional as F
-from modular_rl.networks.actor_critic import ActorCriticNetwork
 from modular_rl.util.node import Node
 from modular_rl.agents._agent import Agent
 from LogAssist.log import Logger
@@ -47,14 +45,21 @@ class AgentMCTS(Agent):
         self.num_simulations = setting.get('num_simulations', 800)
         self.cpuct = setting.get('cpuct', 1.0)
         self.temperature = setting.get('temperature', 1.0)
+        self.gamma = 0.95
+        self.total_value = 0
 
         self.device = setting.get('device', None)
         if self.device == None:
             self.device = torch.device(
                 "cuda" if torch.cuda.is_available() else "cpu")
+        self.reset()
 
-        # Save selected learning data separately
-        # self.state_tensor
+    def reset(self):
+        self.state = None
+        self.action = None
+        self.reward = None
+        self.done = None
+        self.total_reward = 0
 
     def select_action(self, state):
         """
@@ -68,76 +73,48 @@ class AgentMCTS(Agent):
 
         state_tensor = self.check_tensor(self._check_state(state))
         action_probs, _ = self.actor_critic_net(state_tensor)
-        action_probs = action_probs.detach().numpy().flatten()
-        root = Node(state, action_probs)
-        Logger.verb(
-            'agents:mcts:select_action:self.num_simulations', self.num_simulations)
-        Logger.verb(
-            'agents:mcts:select_action:root', root)
-        Logger.verb(
-            'agents:mcts:select_action:action_probs', action_probs)
-        Logger.verb('agents:mcts:select_action:node', f'Root node: {root}')
+        action_probs = action_probs.detach()
+        m = Categorical(action_probs)
+        chosen_action = m.sample().item()
+
+        # Use uniform prior for root node.
+        root = Node(state, [1 / self.env.action_space.n]
+                    * self.env.action_space.n)
+
         for _ in range(self.num_simulations):
-            node = root
-            search_path = [node]
-            # Logger.verb(
-            #    'agents:mcts:select_action:search_path', search_path)
-            # Selection
+            node, search_path = root, [root]
+
             while node.expanded():
                 action, node = node.select_child(self.cpuct)
+                if action is None:
+                    action = chosen_action
                 search_path.append(node)
-            Logger.verb('agents:mcts:select_action:After selection',
-                        f' {search_path[-1]}')
 
-            # Expansion
-            if len(search_path) > 1:
-                parent, action = search_path[-2], search_path[-1].action
-            else:
-                # or some other suitable defaults
-                parent, action = search_path[0], None
-
-            # Logger.verb('mcts:select_action:action', action)
+            parent, action = (search_path[-2], search_path[-1].action) if len(
+                search_path) > 1 else (search_path[0], None)
             step_output = self.env.step(action) if action is not None else (
                 parent.state, 0, False, None)
-            step_output_num = len(step_output)
-
-            if step_output_num == 4:
-                state, reward, done, _ = step_output
-            elif step_output_num == 5:
-                state, reward, done, _, _ = step_output
+            state, reward, done, *_ = step_output
+            Logger.verb('mcts:select_action', f"Step Output Reward: {reward}")
 
             if not done:
-                # Logger.verb(
-                #    'agents:mcts:select_action:state', state)
-                if not torch.is_tensor(state):
-                    state_tensor = torch.from_numpy(
-                        state).float().to(self.device)
-                else:
-                    state_tensor = state.to(self.device)
+                state_tensor = self.check_tensor(state).to(self.device)
+                action_probs, _ = self.actor_critic_net(state_tensor)
+                node.expand(self.env.action_space.n,
+                            action_probs.detach().cpu().numpy().flatten(), False)
 
-                action_probs, value = self.actor_critic_net(state_tensor)
-                action_space = self.env.action_space.n
-                node.expand(action_space, action_probs)
-
-            # Backpropagation
             self.backpropagate(search_path, reward, done)
 
-        chosen_action = root.select_action(self.temperature)
-        chosen_action_reward = root.children[chosen_action].total_value
-        chosen_action_state = root.children[chosen_action].state
-        # Assuming that a non-zero reward indicates a terminal state
-        done = (chosen_action_reward != 0)
+        chosen_action_node = root.children[chosen_action]
 
-        # Save selected learning data separately
-        self.state = chosen_action_state
+        self.state = chosen_action_node.state
         self.action = chosen_action
-        self.reward = chosen_action_reward
-        self.done = done
+        self.reward = chosen_action_node.total_value
+        self.done = self.reward != 0
 
-        self.total_reward += reward
-        self.prev_reward = reward
+        self.total_reward += self.reward
 
-        return chosen_action_state, chosen_action, chosen_action_reward, done
+        return self.state, self.action, self.reward, self.done
 
     def backpropagate(self, search_path, reward, done):
         """
@@ -151,10 +128,9 @@ class AgentMCTS(Agent):
         :type done: bool
         """
         for node in reversed(search_path):
+            # Logger.verb('mcts:backpropagate',
+            #            f"Node Reward({reward}) after Update Stats: {node.total_value}")
             node.update_stats(reward)
-            if not done:
-                _, reward = self.actor_critic_net(node.state)
-                reward = reward.item()
 
     def learn(self):
         """
@@ -191,7 +167,7 @@ class AgentMCTS(Agent):
             self.episode += 1
             # print(f"Episode: {self.episode}, Reward: {self.total_reward}")
 
-    def compute_loss(self, state, action, reward, next_state, done):
+    def compute_loss(self, state, action, reward, done):
         '''
         This function computes the actor and critic loss using the provided state, action, reward, next_state, and done variables.
         The actor loss is computed based on the policy gradient algorithm,
@@ -212,21 +188,31 @@ class AgentMCTS(Agent):
         :param done: A flag indicating whether the episode has ended.
         :return: The computed actor and critic loss values.
         '''
-
         # Predict action probabilities and values
         action_probs, values = self.actor_critic_net(state)
 
         # Compute the value loss
-        target_values = reward + self.gamma * \
-            self.actor_critic_net(next_state)[1] * (1 - done)
+        # Convert reward to tensor
+        reward = torch.tensor(reward, device=self.device)
+        # Convert total_value to tensor
+        total_value = torch.tensor(self.total_value, device=self.device)
+        target_values = reward + self.gamma * total_value * (1 - done)
+        target_values = target_values.unsqueeze(0)
         critic_loss = F.mse_loss(values, target_values.detach())
+
+        # If action is not a list or tuple or its length is zero, initialize it with zeros
+        if not isinstance(action, (list, tuple)) or len(action) == 0:
+            action = torch.zeros_like(action_probs)
 
         # Compute the policy loss
         m = Categorical(action_probs)
         logprobs = m.log_prob(self.check_tensor(action))
         actor_loss = -logprobs * (target_values - values).detach()
 
-        return actor_loss, critic_loss
+        # Average the actor and critic loss
+        loss = (actor_loss.mean() + critic_loss.mean()) / 2
+
+        return loss
 
     def update(self):
         '''
@@ -241,12 +227,19 @@ class AgentMCTS(Agent):
         '''
 
         # Update the network
+        # Convert state to tensor
+        state_tensor = torch.tensor(self.state, device=self.device)
+
+        # Update the network
         self.actor_critic_optimizer.zero_grad()
-        actor_loss, critic_loss = self.compute_loss(
-            self.state_tensor, self.action, self.reward, self.next_state, self.done)
-        loss = actor_loss + critic_loss
+        loss = self.compute_loss(
+            state_tensor, self.action, self.reward, self.done)
+        Logger.verb('mcts:update',
+                    f"Loss: {loss.item()}, Reward: {self.reward}")
         loss.backward()
         self.actor_critic_optimizer.step()
+
+        self.reset()
 
     def check_tensor(self, obj):
         '''
@@ -268,6 +261,13 @@ class AgentMCTS(Agent):
             obj_tensor = torch.FloatTensor(obj)
         else:
             obj_tensor = obj
+
+        Logger.verb('mcts:check_tensor', f"Before remapping: {obj_tensor}")
+        obj_tensor = obj_tensor % self.env.action_space.n
+        obj_tensor = torch.where(
+            obj_tensor >= self.env.action_space.n, self.env.action_space.n - 1, obj_tensor)
+        obj_tensor = torch.round(obj_tensor)
+        Logger.verb('mcts:check_tensor', f"After remapping: {obj_tensor}")
         return obj_tensor
 
     def save_model(self, file_name):
@@ -307,3 +307,17 @@ class AgentMCTS(Agent):
         """
 
         self.load_actor_critic(file_name)
+
+    def update_step(self, state, action, reward, done, next_state):
+        """
+        In MCTS, update_step is not necessary as the agent is updated
+        after every simulation (or a batch of simulations), each of which
+        represents an entire episode. Thus, this method can be left blank or removed.
+        """
+        self.state = state
+        self.action = action
+        self.reward = reward
+        self.done = done
+        self.next_state = next_state
+        self.update_reward(reward)
+        self.update_episode()

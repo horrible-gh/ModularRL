@@ -179,6 +179,33 @@ class Agent:
         '''
         pass
 
+    def update_step(self, state, action, reward, done, next_state):
+        """
+        Updates the provided state, action, reward, done, and next_state.
+
+        :param state: The current state of the environment.
+        :type state: numpy.ndarray
+        :param action: The action taken by the agent.
+        :type action: int
+        :param reward: The reward for the current step.
+        :type reward: float
+        :param done: Flag to mark if the episode is done or not.
+        :type done: bool
+        :param next_state: The next state after the current action.
+        :type next_state: numpy.ndarray
+        """
+
+        self.update_reward(reward)
+
+        self.states.append(state)
+        self.actions.append(action)
+        self.rewards.append(reward)
+        self.dones.append(done)
+        self.next_states.append(next_state)
+
+        if done:
+            self.update()
+
     def save_policy_value(self, file_name):
         """
         Save the policy and value networks and their optimizer states in a file.
