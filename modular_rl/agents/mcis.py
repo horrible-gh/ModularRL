@@ -106,8 +106,14 @@ class AgentMCIS(Agent):
         for node in reversed(search_path):
             node.update_stats(reward)
             if not done:
-                state_tensor = torch.from_numpy(
-                    node.state).float().to(self.device)
+                if isinstance(node.state, np.ndarray):
+                    state_tensor = torch.from_numpy(
+                        node.state).float().to(self.device)
+                elif torch.is_tensor(node.state):
+                    state_tensor = node.state.float().to(self.device)
+                else:
+                    raise ValueError(
+                        "node.state must be a numpy array or torch tensor")
                 _, reward = self.actor_critic_net(state_tensor)
                 reward = reward.item()
 
