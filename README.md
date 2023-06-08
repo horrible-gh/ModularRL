@@ -25,10 +25,10 @@ pip install modular_rl
 
 Refer to the respective agent classes for each algorithm:
 
--   AgentPPO (Modular)
--   AgentMCTS
--   AgentMCIS (Modular)
--   AgentMIM (Modular)
+-   AgentPPO (+ Modular)
+-   AgentMCTS (+ Modular)
+-   AgentMCIS (+ Modular)
+-   AgentMIM (+ Modular)
 
 ## Example Usage
 

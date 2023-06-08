@@ -3,9 +3,9 @@ class ParamMCTS:
         'max_episodes': 10,  # Maximum number of episodes for training
         'max_timesteps': 200,  # Maximum number of timesteps for each episode
         'update_timestep': 2000,  # Update the policy every specified timestep
+        'num_simulations': 10,  # Number of MCTS simulations per move
         'networks': 'medium',  # Size of the hidden layer in neural networks
         'optimizer_speed': 3e-4,  # Learning rate for the optimizer
-        'num_simulations': 10,  # Number of MCTS simulations per move
         'cpuct': 1.0,  # Exploration constant for MCTS
         'temperature': 1.0,  # Temperature for action selection during MCTS
         'gamma': 0.99,  # Discount factor
@@ -19,15 +19,15 @@ class ParamMCTS:
     }
 
     default_modular = {
-        # Maximum number of episodes for training (-1 for no limit)
-        'max_episodes': -1,
-        # Maximum number of timesteps for each episode (-1 for no limit)
-        'max_timesteps': -1,
-        # Update the policy every specified timestep (-1 for no limit)
-        'update_timestep': -1,
+        # Maximum number of episodes for training (1 for modular)
+        'max_episodes': 1,
+        # Maximum number of timesteps for each episode (1 for modular)
+        'max_timesteps': 1,
+        # Update the policy every specified timestep (1 for modular)
+        'update_timestep': 1,
+        'num_simulations': 1,  # Number of MCTS simulations per move
         'networks': 'medium',  # Size of the hidden layer in neural networks
         'optimizer_speed': 3e-4,  # Learning rate for the optimizer
-        'num_simulations': 800,  # Number of MCTS simulations per move
         'cpuct': 1.0,  # Exploration constant for MCTS
         'temperature': 1.0,  # Temperature for action selection during MCTS
         'gamma': 0.99,  # Discount factor
