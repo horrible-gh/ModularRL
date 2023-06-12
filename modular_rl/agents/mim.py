@@ -280,7 +280,9 @@ class AgentMIM(AgentCustom):
                             f'{action_scale}, {rank_idx}, {average_weight}')
 
                 action_num = self.env.action_space - \
-                    round(ranks[rank_idx] * action_scale)
+                    int(ranks[rank_idx] * action_scale)
+                if action_scale < 1 and ranks[rank_idx] == 1:
+                    action_num -= 1
                 Logger.verb('mim:calculate_action_weights:action_num',
                             action_num)
 
