@@ -12,6 +12,7 @@ class EnvMIM(CustomEnv):
         self.unknown_spaces = [0, 3, 3, 3]
         self.simulation_states = []
         self.excluded_states = []
+        self.risk_table = [0, 0, 0]
         self.score_table = [
             CardEvaluator.NO_PAIR_BASE,
             CardEvaluator.ONE_PAIR_BASE,
@@ -35,10 +36,11 @@ class EnvMIM(CustomEnv):
             'my_simulation_number': 0,
             'score_table': self.score_table,
             'score_calculation_callback': lambda cards: CardEvaluator.card_evaluator(cards),
+            'risk_table': self.risk_table,
         }
 
-        # self.action_space = 3
-        self.action_space = [0, 1, 2]
+        self.action_space = 3
+        # self.action_space = [0, 1, 2]
 
         self.shuffle()
 

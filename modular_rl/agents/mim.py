@@ -54,6 +54,13 @@ class AgentMIM(AgentCustom):
             'superior_rank_adjustment_factor', ParamMIM.default['superior_rank_adjustment_factor'])
         self.inferior_rank_adjustment_factor = setting.get(  # The adjustment factor applied to actions that are ranked inferior.
             'inferior_rank_adjustment_factor', ParamMIM.default['inferior_rank_adjustment_factor'])
+        self.std_deviation_factor = setting.get(
+            'std_deviation_factor', ParamMIM.default['std_deviation_factor'])
+        self.skewness_factor = setting.get(
+            'skewness_factor', ParamMIM.default['skewness_factor'])
+        self.kurtosis_factor = setting.get(
+            'kurtosis_factor', ParamMIM.default['kurtosis_factor'])
+
         # Counter for the number of simulation iterations.
         self.simulation_iteration_indexes_count = 0
         # Average of standard deviations for all simulations.
@@ -94,6 +101,7 @@ class AgentMIM(AgentCustom):
         score_calculation_callback = state[self.score_calculation_callback_name]
         self.my_simulation_number = state[self.my_simulation_number_name]
         score_table = state[self.score_table_name]
+        self.risk_table = state.get('risk_table', None)
         remaining_states = set(simulation_states) - set(excluded_states)
         simulation_table = []
 
@@ -133,7 +141,7 @@ class AgentMIM(AgentCustom):
             sim_result = 0
             for sub_index in range(len(simulation_table[index])):
                 sim_result += simulation_table[index][sub_index] * \
-                    sub_index + 0.001
+                    sub_index + 0.0001
             self.simulation_totals.append(sim_result)
             self.simulation_averages.append(
                 sim_result / self.simulation_iteration_indexes[index])
@@ -195,7 +203,11 @@ class AgentMIM(AgentCustom):
         """
 
         weight_adjustment_factors = [1] * simulation_size
-        factors = [0.125, 0.075, 0.05]
+        factors = [
+            self.std_deviation_factor,
+            self.skewness_factor,
+            self.kurtosis_factor,
+        ]
         averages = [self.standard_deviations_avg,
                     self.skews_avg, self.kurtosises_avg]
         values = [self.standard_deviations, self.skews, self.kurtosises]
@@ -261,6 +273,10 @@ class AgentMIM(AgentCustom):
         my_action_rank = my_rank
         my_action_rank = self.env.action_space - \
             round(my_rank * action_scale)
+        if my_rank == 1 and action_scale >= 1.5:
+            my_action_rank = self.env.action_space - 1
+        if my_action_rank < 0:
+            my_action_rank = 0
 
         for rank_idx in range(len(ranks)):
             Logger.verb('mim:calculate_action_weights:rank_idx',
@@ -280,9 +296,11 @@ class AgentMIM(AgentCustom):
                             f'{action_scale}, {rank_idx}, {average_weight}')
 
                 action_num = self.env.action_space - \
-                    int(ranks[rank_idx] * action_scale)
-                if action_scale < 1 and ranks[rank_idx] == 1:
-                    action_num -= 1
+                    round(ranks[rank_idx] * action_scale)
+                if ranks[rank_idx] == 1 and action_scale >= 1.5:
+                    action_num = self.env.action_space - 1
+                if action_num < 0:
+                    action_num = 0
                 Logger.verb('mim:calculate_action_weights:action_num',
                             action_num)
 
@@ -301,11 +319,34 @@ class AgentMIM(AgentCustom):
                                 f'{action_num}, {action_weights[action_num]}, {my_action_rank}, {action_weights[my_action_rank]}, {average_weight}')
 
         for action_num in range(len(action_weights)):
-            if action_weights[action_num] == 0:
+            if action_weights[action_num] in (0, int(1 / self.env.action_space * 100)):
                 prev_action_weights = action_weights[action_num-1]
                 next_action_weights = action_weights[action_num+1]
                 middle_weight = (prev_action_weights + next_action_weights) / 2
                 action_weights[action_num] = round(middle_weight)
+
+        if self.risk_table:
+            risk_total = sum(self.risk_table)
+            if risk_total != 0:
+                action_weight_total = 0
+                action_weight = 0
+                for risk_num in range(len(self.risk_table)):
+                    action_weight += action_weights[risk_num] * \
+                        self.risk_table[risk_num]
+                    action_weights[risk_num] -= action_weight
+                    action_weight_total += action_weight
+
+                risk_weight = [risk_total-self.risk_table[risk_num]
+                               for risk_num in range(len(self.risk_table))]
+                risk_total = sum(risk_weight)
+
+                Logger.verb('mim:calculate_action_weights:risk_weight,risk_total',
+                            f'{risk_weight},{risk_total}')
+
+                for risk_num in range(len(risk_weight)):
+                    if risk_total != 0:
+                        action_weights[risk_num] += action_weight_total * \
+                            risk_weight[risk_num] / risk_total
 
         Logger.verb('mim:calculate_action_weights:action_weights',
                     action_weights)
@@ -351,11 +392,10 @@ class AgentMIM(AgentCustom):
 
     def select_action(self, state):
         action_list = []
-        if isinstance(self.env.action_space, list):
-            action_table = self.env.action_space
+        if isinstance(self.env.action_space, int) != True:
+            raise Exception("action space be not an integer")
         else:
             action_table = list(range(self.env.action_space))
-        self.env.action_space = len(action_table)
         self.simulate(state)
         action_weights = self.calculate_weights()
         Logger.verb('mim:select_action', action_weights)

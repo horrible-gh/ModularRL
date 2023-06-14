@@ -98,10 +98,13 @@ class Agent:
         """
 
         # Create neural network instances and optimizer
+        networks_size = self.setting.get('networks', 'middle')
+        Logger.verb('_agent:init_policy_value',
+                    f'Initialize policy and value networks to {networks_size}')
         self.policy_net = PolicyNetwork(
-            self.state_dim, self.action_dim, self.setting.get('networks', 'middle'))
+            self.state_dim, self.action_dim, networks_size)
         self.value_net = ValueNetwork(
-            self.state_dim, self.setting.get('networks', 'middle'))
+            self.state_dim, networks_size)
         self.policy_optimizer = optim.Adam(
             self.policy_net.parameters(), lr=self.setting.get('optimizer_speed', 3e-4))
         self.value_optimizer = optim.Adam(
