@@ -283,3 +283,15 @@ class Agent:
     def update_episode(self):
         self.episode += 1
         self.episode_reward = 0
+
+    def convert_float_to_double(self, input_tensor):
+        if input_tensor.dtype == torch.float32:
+            return input_tensor.double()
+        else:
+            return input_tensor
+
+    def ensure_float(self, input_tensor):
+        if input_tensor.dtype == torch.float64:
+            return input_tensor.float()
+        else:
+            return input_tensor

@@ -189,6 +189,7 @@ class AgentMCTS(Agent):
         :return: The computed actor and critic loss values.
         '''
         # Predict action probabilities and values
+        state = self.ensure_float(state)
         action_probs, values = self.actor_critic_net(state)
 
         # Compute the value loss
