@@ -1,5 +1,6 @@
 class ParamMCIS:
     default = {
+        'learn_framework': 'pytorch',
         'max_episodes': 10,  # Maximum number of episodes for training
         'max_timesteps': 200,  # Maximum number of timesteps for each episode
         'networks': 'medium',  # Size of the hidden layer in neural networks
@@ -18,6 +19,7 @@ class ParamMCIS:
     }
 
     default_modular = {
+        'learn_framework': 'pytorch',
         # Maximum number of episodes for training (-1 for no limit)
         'max_episodes': -1,
         # Maximum number of timesteps for each episode (-1 for no limit)
