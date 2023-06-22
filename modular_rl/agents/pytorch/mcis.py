@@ -53,6 +53,9 @@ class PyTorchAgentMCIS(Agent):
             self.device = torch.device(
                 "cuda" if torch.cuda.is_available() else "cpu")
 
+    def update_step(self, state, action, reward, done, next_state):
+        return super().update_step(state, action, reward, done, next_state)
+
     def select_action(self, state):
         """
         Select an action using mcis.

@@ -4,10 +4,11 @@ from modular_rl.agents.mcts import AgentMCTS
 
 
 def init_mcts_modular():
+    env = gym.make('CartPole-v0')
     setting = AgentSettings.default_mcts_modular
     setting['log_level'] = 'verb'
     mcts_agent = AgentMCTS(
-        env=None, setting=setting)
+        env=env, setting=setting)
 
     mcts_agent.reset()
 

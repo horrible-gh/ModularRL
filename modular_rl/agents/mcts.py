@@ -44,6 +44,12 @@ class AgentMCTS():
     def update(self):
         self.agent.update()
 
+    def learn_close(self):
+        self.agent.learn_close()
+
+    def learn_check(self):
+        self.agent.learn_check()
+
     def check_tensor(self, state):
         return self.agent.check_tensor(state)
 
@@ -66,4 +72,4 @@ class AgentMCTS():
         self.agent.reset()
 
     def learn_reset(self):
-        self.agent.learn_reset()
+        return self.agent.learn_reset()

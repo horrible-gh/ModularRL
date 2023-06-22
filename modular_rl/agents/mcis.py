@@ -44,6 +44,15 @@ class AgentMCIS():
     def update(self):
         self.agent.update()
 
+    def update_step(self, state, action, reward, done, next_state):
+        self.agent.update_step(state, action, reward, done, next_state)
+
+    def learn_close(self):
+        self.agent.learn_close()
+
+    def learn_check(self):
+        self.agent.learn_check()
+
     def check_tensor(self, state):
         return self.agent.check_tensor(state)
 
@@ -63,4 +72,4 @@ class AgentMCIS():
         self.agent.reset()
 
     def learn_reset(self):
-        self.agent.learn_reset()
+        return self.agent.learn_reset()

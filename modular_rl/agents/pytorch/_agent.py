@@ -38,7 +38,7 @@ class Agent(CommonAgents):
         return super().learn_reset()
 
     def learn_close(self):
-        super().learn_close
+        super().learn_close()
 
     def learn_check(self):
         super().learn_check()
