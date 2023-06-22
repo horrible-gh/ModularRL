@@ -1,5 +1,6 @@
 class ParamMCTS:
     default = {
+        'learn_framework': 'pytorch',
         'max_episodes': 10,  # Maximum number of episodes for training
         'max_timesteps': 200,  # Maximum number of timesteps for each episode
         'update_timestep': 2000,  # Update the policy every specified timestep
@@ -19,6 +20,7 @@ class ParamMCTS:
     }
 
     default_modular = {
+        'learn_framework': 'pytorch',
         # Maximum number of episodes for training (1 for modular)
         'max_episodes': 1,
         # Maximum number of timesteps for each episode (1 for modular)

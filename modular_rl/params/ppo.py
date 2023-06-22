@@ -1,5 +1,6 @@
 class ParamPPO:
     default = {
+        'learn_framework': 'pytorch',
         'max_episodes': 30,  # Maximum number of episodes for training
         'max_timesteps': 200,  # Maximum number of timesteps for each episode
         'update_timestep': 2000,  # Update the policy every specified timestep
@@ -18,6 +19,7 @@ class ParamPPO:
     }
 
     default_modular = {
+        'learn_framework': 'pytorch',
         # Maximum number of episodes for training (-1 for no limit)
         'max_episodes': -1,
         # Maximum number of timesteps for each episode (-1 for no limit)

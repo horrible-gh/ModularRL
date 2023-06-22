@@ -11,7 +11,7 @@ PyTorch  (BSD-Style License): https://pytorch.org/ - Copyright (c) Facebook.
 import torch.nn as nn
 
 
-class ActorCriticNetwork(nn.Module):
+class PyTorchActorCriticNetwork(nn.Module):
     def __init__(self, state_dim, action_dim, hidden_size=256):
         '''
         This code defines a class ActorCriticNetwork that implements an actor-critic network using PyTorch.
@@ -24,7 +24,7 @@ class ActorCriticNetwork(nn.Module):
         :param hidden_size: (int) The number of neurons in the hidden layers of both the actor and critic networks.
         '''
 
-        super(ActorCriticNetwork, self).__init__()
+        super(PyTorchActorCriticNetwork, self).__init__()
 
         # Actor network
         self.actor = nn.Sequential(

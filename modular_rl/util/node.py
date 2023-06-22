@@ -7,13 +7,12 @@ class Node:
     def __init__(self, state, prior, action=None, done=False):
         self.state = state
         self.prior = prior
-        self.action = action  # 액션 정보를 저장하는 속성 추가
+        self.action = action
         self.visit_count = 0
         self.value_sum = 0
         self.children = {}
         self.total_value = 0
         self.done = done  # Assign the done attribute
-
 
     def __repr__(self):
         return f'Node(state={self.state}, total_value={self.total_value}, visit_count={self.visit_count}, is_expanded={self.expanded()}, action_probs={self.action}, children={self.children})'
@@ -24,7 +23,7 @@ class Node:
     def value(self):
         if self.visit_count == 0:
             return 0
-        return self.total_value / self.visit_count  # 총 보상을 방문 횟수로 나누어 평균 보상을 반환
+        return self.total_value / self.visit_count
 
     def select_child(self, cpuct):
         best_score = -math.inf
@@ -44,11 +43,13 @@ class Node:
     def expand(self, action_space, child_priors, child_done):  # Add a child_done parameter
         for action, prior in zip(range(action_space), child_priors):
             if action not in self.children:
-                self.children[action] = Node(self.state, prior, action, child_done)  # Pass the child_done to the new Node
+                # Pass the child_done to the new Node
+                self.children[action] = Node(
+                    self.state, prior, action, child_done)
 
     def update_stats(self, reward):
-        self.total_value += reward  # 총 보상 업데이트
-        self.visit_count += 1  # 방문 횟수 증가
+        self.total_value += reward
+        self.visit_count += 1
 
     def select_action(self, temperature=1):
         visit_counts = np.array(

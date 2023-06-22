@@ -1,4 +1,3 @@
-from .mcis import PyTorchAgentMCIS
-from .mcts import AgentMCTS
-from .ppo import AgentPPO
-from .mim import AgentMIM
+from .mcis import TensorFlowAgentMCIS
+from .mcts import TensorFlowAgentMCTS
+from .ppo import TensorFlowAgentPPO

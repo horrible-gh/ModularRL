@@ -18,9 +18,9 @@ import gym
 from LogAssist.log import Logger
 import torch
 import torch.optim as optim
-from modular_rl.networks.pytorch.policy import PolicyNetwork
-from modular_rl.networks.pytorch.value import ValueNetwork
-from modular_rl.networks.pytorch.actor_critic import ActorCriticNetwork
+from modular_rl.networks.pytorch.policy import PyTorchPolicyNetwork
+from modular_rl.networks.pytorch.value import PyTorchValueNetwork
+from modular_rl.networks.pytorch.actor_critic import PyTorchActorCriticNetwork
 from modular_rl.agents._common._agents import CommonAgents
 
 
@@ -64,9 +64,9 @@ class Agent(CommonAgents):
         networks_size = self.setting.get('networks', 'middle')
         Logger.verb('_agent:init_policy_value',
                     f'Initialize policy and value networks to {networks_size}')
-        self.policy_net = PolicyNetwork(
+        self.policy_net = PyTorchPolicyNetwork(
             self.state_dim, self.action_dim, networks_size)
-        self.value_net = ValueNetwork(
+        self.value_net = PyTorchValueNetwork(
             self.state_dim, networks_size)
         self.policy_optimizer = optim.Adam(
             self.policy_net.parameters(), lr=self.setting.get('optimizer_speed', 3e-4))
@@ -79,7 +79,7 @@ class Agent(CommonAgents):
         """
 
         # Neural Network
-        self.actor_critic_net = ActorCriticNetwork(
+        self.actor_critic_net = PyTorchActorCriticNetwork(
             self.state_dim, self.action_dim)
         self.actor_critic_optimizer = optim.Adam(
             self.actor_critic_net.parameters(), lr=self.setting.get('optimizer_speed', 3e-4))
