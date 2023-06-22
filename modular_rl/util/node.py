@@ -25,6 +25,12 @@ class Node:
             return 0
         return self.total_value / self.visit_count
 
+    def get_score(self, cpuct):
+        """
+        Calculate and return the UCT value of the node.
+        """
+        return self.value() + cpuct * self.prior * math.sqrt(self.visit_count) / (1 + self.visit_count)
+
     def select_child(self, cpuct):
         best_score = -math.inf
         best_action = -1

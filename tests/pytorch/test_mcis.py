@@ -5,7 +5,7 @@ from modular_rl.agents.mcis import AgentMCIS
 
 def init_mcis():
     env = gym.make('CartPole-v0')
-    setting = AgentSettings.default_mcts
+    setting = AgentSettings.default_mcis
     setting['num_simulations'] = 10
     setting['max_episodes'] = 10
     setting['log_level'] = 'verb'

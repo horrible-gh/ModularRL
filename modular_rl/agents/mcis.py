@@ -24,7 +24,7 @@ class AgentMCIS():
         if learn_framework == self.LEARN_PYTORCH:
             self.agent = PyTorchAgentMCIS(env, setting)
         elif learn_framework == self.LEARN_TENSORFLOW:
-            pass
+            self.agent = TensorFlowAgentMCIS(env, setting)
 
     def select_action(self, state):
         return self.agent.select_action(state)
