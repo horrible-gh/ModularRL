@@ -23,7 +23,7 @@ import numpy as np
 from torch.distributions import Categorical
 import torch.nn.functional as F
 from modular_rl.util.node import Node
-from modular_rl.agents._agent import Agent
+from modular_rl.agents.pytorch._agent import Agent
 from LogAssist.log import Logger
 
 
