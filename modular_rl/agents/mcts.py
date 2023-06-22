@@ -24,7 +24,7 @@ class AgentMCTS():
         if learn_framework == self.LEARN_PYTORCH:
             self.agent = PyTorchAgentMCTS(env, setting)
         elif learn_framework == self.LEARN_TENSORFLOW:
-            pass
+            self.agent = TensorFlowAgentMCTS(env, setting)
 
     def select_action(self, state):
         return self.agent.select_action(state)
