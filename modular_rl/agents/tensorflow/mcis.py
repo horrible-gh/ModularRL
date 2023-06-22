@@ -229,8 +229,6 @@ class TensorFlowAgentMCIS(Agent):
             for t in range(self.max_timesteps):
                 state = self._check_state(state)
                 Logger.verb('mcis:train', f'{state.shape}')
-                # Expand dimensions to meet the requirement
-                state = np.expand_dims(state, axis=0)
                 self.state_tensor = self.check_tensor(state).numpy()
 
                 # Select an action

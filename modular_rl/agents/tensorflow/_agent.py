@@ -14,9 +14,6 @@ class Agent(CommonAgents):
     def reset(self):
         super().reset()
 
-    def _check_state(self, state):
-        return super()._check_state(state)
-
     def learn_reset(self):
         return super().learn_reset()
 
@@ -37,6 +34,17 @@ class Agent(CommonAgents):
 
     def update_episode(self):
         super().update_episode()
+
+    def _check_state(self, state):
+        state_num = len(state)
+        if state_num == 2:
+            state, _ = state  # Unpack the tuple
+
+        # Check if the state is 1-dimensional
+        if len(tf.shape(state)) == 1:
+            state = tf.expand_dims(state, axis=0)  # Expand the dimensions
+
+        return state
 
     def init_policy_value(self):
         """
