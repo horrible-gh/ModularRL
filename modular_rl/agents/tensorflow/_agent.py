@@ -46,6 +46,18 @@ class Agent(CommonAgents):
 
         return state
 
+    def check_tensor(self, state):
+        '''
+        This function checks if the provided object is a TensorFlow tensor, and if not, converts it to a tensor.
+
+        :param state: The object to check/convert to a TensorFlow tensor.
+        :return: The input object as a TensorFlow tensor.
+        '''
+        Logger.verb('_agent:check_tensor', f'state={state}')
+        if not isinstance(state, tf.Tensor):
+            state = tf.convert_to_tensor(state, dtype=tf.float32)
+        return state
+
     def init_policy_value(self):
         """
         Initializes policy and value networks, and their respective optimizers.

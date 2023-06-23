@@ -25,7 +25,7 @@ class AgentPPO():
         if learn_framework == self.LEARN_PYTORCH:
             self.agent = PyTorchAgentPPO(env, setting)
         elif learn_framework == self.LEARN_TENSORFLOW:
-            pass
+            self.agent = TensorFlowAgentPPO(env, setting)
 
     def compute_advantages(self, rewards, values, dones, gamma=0.99, lam=0.95):
         return self.agent.compute_advantages(rewards, values, dones, gamma, lam)

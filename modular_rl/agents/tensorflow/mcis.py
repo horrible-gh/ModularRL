@@ -258,7 +258,7 @@ class TensorFlowAgentMCIS(Agent):
         :param state: The object to check/convert to a TensorFlow tensor.
         :return: The input object as a TensorFlow tensor.
         '''
-
+        Logger.verb('_agent:check_tensor', f'state={state}')
         if not isinstance(state, tf.Tensor):
             state = tf.convert_to_tensor(state, dtype=tf.float32)
         return state
