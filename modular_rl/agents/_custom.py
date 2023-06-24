@@ -17,6 +17,14 @@ from modular_rl.envs._custom import CustomEnv
 
 class AgentCustom:
     def __init__(self, env, setting):
+        """
+        :param env: The environment for the agent to interact with. It should be an instance of a compatible environment class. If None is provided, a default CustomEnv environment will be used.
+        :type env: object
+        :param setting: The setting configuration for the agent, specifying various learning parameters and settings.
+        :type setting: dict
+        :return: None
+        """
+
         self.env = env if env else CustomEnv()
         self.setting = setting
 

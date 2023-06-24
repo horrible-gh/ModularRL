@@ -1,3 +1,23 @@
+
+# -*- coding: utf-8 -*-
+"""
+ModularRL project
+
+Copyright (c) 2023 horrible-gh
+
+Class AgentPPO is an implementation of the Proximal Policy Optimization (PPO) algorithm.
+It takes an environment and a setting configuration as inputs, initializes neural network instances and optimizers,
+and sets various learning parameters.
+It has methods to predict an action given a state, perform a learning step, update the neural network parameters,
+save and load a checkpoint, and reset learning parameters.
+The class also has instance variables to keep track of episode and total rewards, previous reward, and average reward.
+
+This software includes the following third-party libraries:
+Gym (MIT License): https://github.com/openai/gym - Copyright (c) OpenAI.
+NumPy (BSD License): https://numpy.org - Copyright (c) NumPy Developers.
+TensorFlow (Apache License 2.0): https://www.tensorflow.org/ - Copyright (c) TensorFlow Developers.
+"""
+
 import tensorflow as tf
 import tensorflow_probability as tfp
 import numpy as np

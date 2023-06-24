@@ -139,6 +139,15 @@ class CommonAgents:
             self.update()
 
     def step_unpack(self, step_output):
+        """
+        Unpack the step output tuple and extract the next state, reward, and done flag.
+
+        :param step_output: The step output tuple containing next state, reward, and done flag.
+        :type step_output: tuple
+        :return: The unpacked next state, reward, and done flag.
+        :rtype: tuple
+        """
+
         step_output_num = len(step_output)
         if step_output_num == 4:
             next_state, reward, is_done, _ = step_output
@@ -147,13 +156,54 @@ class CommonAgents:
         return next_state, reward, is_done
 
     def update_reward(self, reward):
+        """
+        Update the reward-related variables with the given reward value.
+
+        :param reward: The reward value to update the variables with.
+        :type reward: float
+        """
+
         self.episode_reward += reward
         self.total_reward += reward
         self.prev_reward = reward
 
     def update_episode(self):
+        """
+        Update the episode-related variables to indicate the start of a new episode.
+        """
+
         self.episode += 1
         self.episode_reward = 0
+
+    def convert_float_to_double(self, input_tensor):
+        """
+        Convert the input tensor from float32 to double precision if necessary.
+
+        :param input_tensor: The input tensor to be converted.
+        :type input_tensor: torch.Tensor
+        :return: The converted tensor.
+        :rtype: torch.Tensor
+        """
+
+        if input_tensor.dtype == torch.float32:
+            return input_tensor.double()
+        else:
+            return input_tensor
+
+    def ensure_float(self, input_tensor):
+        """
+        Ensure that the input tensor is of float precision by converting it from float64 if necessary.
+
+        :param input_tensor: The input tensor to be converted.
+        :type input_tensor: torch.Tensor
+        :return: The converted tensor.
+        :rtype: torch.Tensor
+        """
+
+        if input_tensor.dtype == torch.float64:
+            return input_tensor.float()
+        else:
+            return input_tensor
 
     def update(self):
         '''

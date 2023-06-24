@@ -1,3 +1,18 @@
+
+"""
+ModularRL project
+
+Copyright (c) 2023 horrible-gh
+
+ModularRL is a Python library for creating and training reinforcement learning agents using various algorithms.
+The library is designed to be easily customizable and modular,
+allowing users to quickly set up and train agents for various environments without being limited to a specific algorithm.
+
+This software includes the following third-party libraries:
+Gym (MIT License): https://github.com/openai/gym - Copyright (c) OpenAI.
+NumPy (BSD License): https://numpy.org - Copyright (c) NumPy Developers.
+TensorFlow (Apache License 2.0): https://www.tensorflow.org/ - Copyright (c) TensorFlow Developers.
+"""
 import tensorflow as tf
 from tensorflow.keras.models import load_model
 from LogAssist.log import Logger
