@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='modular_rl',
-    version='0.4.0',
+    version='0.4.1',
     description='ModularRL package',
     author='sjm',
     author_email='shinjpn1@gmail.com',
@@ -27,5 +27,7 @@ setup(
         'gym>=0.23.0',
         'LogAssist>=1.0.6',
         'tensorflow>=2.12.0',
+        'tensorflow>=2.12.0',
+        'tensorflow_probability>=0.20.1',
     ],
 )

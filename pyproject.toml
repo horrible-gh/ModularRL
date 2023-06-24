@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "modular_rl"
-version = "0.4.0"
+version = "0.4.1"
 authors = [
   { name="horrible", email="shinjpn1@gmail.com" },
 ]
@@ -24,7 +24,7 @@ classifiers = [
     'Programming Language :: Python :: 3.11',
 ]
 keywords=['ModularRL', 'Modular-RL', 'Modular_RL', 'Modular RL',  'modularrl',  'modular_rl', 'modular-rl', 'modular rl', 'mrl', 'modular', 'learn', 'learning', 'pytorch learn', 'pytorch learning', 'tensorflow learn', 'tensorflow learning', 'ai']
-dependencies=['gym', 'numpy', 'torch', 'LogAssist']
+dependencies=['gym', 'numpy', 'torch', 'LogAssist', 'tensorflow', 'tensorflow_probability']
 
 
 [project.urls]
