@@ -18,79 +18,42 @@ import gym
 from LogAssist.log import Logger
 import torch
 import torch.optim as optim
-from modular_rl.networks.policy import PolicyNetwork
-from modular_rl.networks.value import ValueNetwork
-from modular_rl.networks.actor_critic import ActorCriticNetwork
+from modular_rl.networks.pytorch.policy import PyTorchPolicyNetwork
+from modular_rl.networks.pytorch.value import PyTorchValueNetwork
+from modular_rl.networks.pytorch.actor_critic import PyTorchActorCriticNetwork
+from modular_rl.agents._common._agents import CommonAgents
 
 
-class Agent:
+class Agent(CommonAgents):
     def __init__(self, env, setting):
-        '''
-        :param env: The environment for the agent to interact with, if not provided, CartPole-v0 will be used.
-        :param setting: A dictionary containing the settings and hyperparameters for the agent's training process.
-        '''
-
-        # Environment preparation
-        self.env = env if env else gym.make('CartPole-v0')
-        self.setting = setting
-        self.state_dim = self.env.observation_space.shape[0]
-        self.action_dim = self.env.action_space.n
-
-        # Defination networks and optimizers
-        self.policy_net = None
-        self.value_net = None
-        self.policy_optimizer = None
-        self.value_optimizer = None
-
-        self.actor_critic_net = None
-        self.actor_critic_optimizer = None
-
-        # Training parameters(Common)
-        self.max_episodes = setting.get('max_episodes', 30)
-        self.max_timesteps = setting.get('max_timesteps', 100)
-        self.update_timestep = setting.get('update_timestep', 200)
-        self.gamma = setting.get('gamma', 0.99)
-        self.early_stop_threshold = setting.get('early_stop_threshold', -1)
-        self.done_loop_end = setting.get('done_loop_end', False)
-
-        # Set learn episode parameters
-        self.episode_reward = 0
-        self.total_reward = 0
-        self.prev_reward = 0
-        self.episode = 0
-        self.avg_reward = 0
-
-        # Set learn parameters (If necessary)
-        self.state = None
-        self.action = None
-        self.reward = None
-        self.done = None
-        self.reset()
-
-        # Logger initialize
-        self.log_level = setting.get('log_level', 'debug')
-        self.log_init_pass = setting.get('log_init_pass', False)
-        if self.log_init_pass == False:
-            Logger.init(
-                dir_name=None,
-                file_name=None,
-                log_level=self.log_level,
-                out_console=True,
-                out_file=None,
-                prev_log_remove=None
-            )
+        super().__init__(env, setting)
 
     def reset(self):
-        """
-        Reset the lists that contain information about the states, actions, rewards, and other values for the agent.
-        """
+        super().reset()
 
-        self.states = []
-        self.actions = []
-        self.rewards = []
-        self.next_states = []
-        self.dones = []
-        self.log_probs = []
+    def _check_state(self, state):
+        return super()._check_state(state)
+
+    def learn_reset(self):
+        return super().learn_reset()
+
+    def learn_close(self):
+        super().learn_close()
+
+    def learn_check(self):
+        super().learn_check()
+
+    def update_step(self, state, action, reward, done, next_state):
+        super().update_step(state, action, reward, done, next_state)
+
+    def step_unpack(self, step_output):
+        return super().step_unpack(step_output)
+
+    def update_reward(self, reward):
+        super().update_reward(reward)
+
+    def update_episode(self):
+        super().update_episode()
 
     def init_policy_value(self):
         """
@@ -101,9 +64,9 @@ class Agent:
         networks_size = self.setting.get('networks', 'middle')
         Logger.verb('_agent:init_policy_value',
                     f'Initialize policy and value networks to {networks_size}')
-        self.policy_net = PolicyNetwork(
+        self.policy_net = PyTorchPolicyNetwork(
             self.state_dim, self.action_dim, networks_size)
-        self.value_net = ValueNetwork(
+        self.value_net = PyTorchValueNetwork(
             self.state_dim, networks_size)
         self.policy_optimizer = optim.Adam(
             self.policy_net.parameters(), lr=self.setting.get('optimizer_speed', 3e-4))
@@ -116,50 +79,10 @@ class Agent:
         """
 
         # Neural Network
-        self.actor_critic_net = ActorCriticNetwork(
+        self.actor_critic_net = PyTorchActorCriticNetwork(
             self.state_dim, self.action_dim)
         self.actor_critic_optimizer = optim.Adam(
             self.actor_critic_net.parameters(), lr=self.setting.get('optimizer_speed', 3e-4))
-
-    def _check_state(self, state):
-        '''
-        This function takes a state parameter and returns the first element of a tuple if state has a length of 2, otherwise it simply returns the state parameter.
-
-        :param state: The state data to be checked.
-        :return: The checked state data.
-        '''
-
-        state_num = len(state)
-        if state_num == 2:
-            state, _ = state  # Unpack the tuple
-        return state
-
-    def learn_reset(self):
-        """
-        Reset the agent's state and episode reward.
-        """
-
-        self.state = self.env.reset()
-        return self._check_state(self.state)
-
-    def learn_close(self):
-        """
-        Close the environment and reset the agent's total reward, episode count, and episode reward.
-        """
-
-        self.env.close()
-        self.total_reward = 0
-        self.episode = 0
-        self.episode_reward = 0
-
-    def learn_check(self):
-        """
-        Print the episode count, previous reward, episode reward, total reward, and average episode reward.
-        """
-
-        avg_reward = self.total_reward / (self.episode + 1)
-        Logger.debug(
-            f'Episode: {self.episode}, Previous Reward: {self.prev_reward},  Episode Reward: {self.episode_reward}, Total Reward: {self.total_reward}, Average Episode Reward: {avg_reward}')
 
     def select_action(self, state):
         '''
@@ -181,33 +104,6 @@ class Agent:
         No parameters are passed into this function and it does not return anything.
         '''
         pass
-
-    def update_step(self, state, action, reward, done, next_state):
-        """
-        Updates the provided state, action, reward, done, and next_state.
-
-        :param state: The current state of the environment.
-        :type state: numpy.ndarray
-        :param action: The action taken by the agent.
-        :type action: int
-        :param reward: The reward for the current step.
-        :type reward: float
-        :param done: Flag to mark if the episode is done or not.
-        :type done: bool
-        :param next_state: The next state after the current action.
-        :type next_state: numpy.ndarray
-        """
-
-        self.update_reward(reward)
-
-        self.states.append(state)
-        self.actions.append(action)
-        self.rewards.append(reward)
-        self.dones.append(done)
-        self.next_states.append(next_state)
-
-        if done:
-            self.update()
 
     def save_policy_value(self, file_name):
         """
@@ -266,23 +162,6 @@ class Agent:
             checkpoint['actor_critic_net_state_dict'])
         self.actor_critic_optimizer.load_state_dict(
             checkpoint['optimizer_state_dict'])
-
-    def step_unpack(self, step_output):
-        step_output_num = len(step_output)
-        if step_output_num == 4:
-            next_state, reward, is_done, _ = step_output
-        elif step_output_num == 5:
-            next_state, reward, is_done, _, _ = step_output
-        return next_state, reward, is_done
-
-    def update_reward(self, reward):
-        self.episode_reward += reward
-        self.total_reward += reward
-        self.prev_reward = reward
-
-    def update_episode(self):
-        self.episode += 1
-        self.episode_reward = 0
 
     def convert_float_to_double(self, input_tensor):
         if input_tensor.dtype == torch.float32:

@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import gym
 from modular_rl.agents.ppo import AgentPPO
 from modular_rl.settings import AgentSettings
 
@@ -14,32 +15,33 @@ The instance is then saved to a file using the save_model() method, which is not
 
 
 def init_ppo_modular():
-    env = AgentPPO(env=None, setting=AgentSettings.default_ppo_modular)
-    env.reset()
-    env.learn_reset()
-    env.learn_next()
-    env.learn_check()
-    env.learn_next()
-    env.learn_check()
-    env.update()
+    env = gym.make('CartPole-v0')
+    agent = AgentPPO(env=env, setting=AgentSettings.default_ppo_modular)
+    agent.reset()
+    agent.learn_reset()
+    agent.learn_next()
+    agent.learn_check()
+    agent.learn_next()
+    agent.learn_check()
+    agent.update()
 
-    env.reset()
-    ppo_manual_step(env)
-    env.learn_check()
-    ppo_manual_step(env)
-    env.learn_check()
-    env.update()
+    agent.reset()
+    ppo_manual_step(agent)
+    agent.learn_check()
+    ppo_manual_step(agent)
+    agent.learn_check()
+    agent.update()
 
-    env.learn_close()
+    agent.learn_close()
 
     # env.save_model('test.pth')
 
 
-def ppo_manual_step(env):
-    initial_state = env.learn_reset()
-    action, _ = env.select_action(initial_state)
-    next_state = env.learn_reset()
-    env.update_step(next_state, None, action, -1)
+def ppo_manual_step(agent=AgentPPO):
+    initial_state = agent.learn_reset()
+    action, _ = agent.select_action(initial_state)
+    next_state = agent.learn_reset()
+    agent.update_step(next_state, None, action, -1)
 
 
 init_ppo_modular()
