@@ -1,3 +1,25 @@
+"""
+ModularRL project
+
+Copyright (c) 2023 horrible-gh
+
+Class AgentMCIS is an implementation of the Monte Carlo Importance Sampling (MCIS) algorithm.
+The algorithm is used for solving problems of sequential decision making under uncertainty.
+It takes an environment and a setting configuration as inputs, initializes neural network instances and optimizers,
+and sets various learning parameters.
+This class has methods to predict an action given a state, perform a learning step, update the neural network parameters,
+save and load a checkpoint, and reset learning parameters.
+The class also has instance variables to keep track of episode and total rewards, previous reward, and average reward.
+
+Importance Sampling is used to estimate the properties of a particular target distribution, given some observed data and a proposal distribution.
+This implementation makes use of Monte Carlo methods, which rely on repeated random sampling to obtain numerical results.
+
+This software includes the following third-party libraries:
+Gym (MIT License): https://github.com/openai/gym - Copyright (c) OpenAI.
+NumPy (BSD License): https://numpy.org - Copyright (c) NumPy Developers.
+TensorFlow (Apache License 2.0): https://www.tensorflow.org/ - Copyright (c) TensorFlow Developers.
+"""
+
 import tensorflow as tf
 import tensorflow_probability as tfp
 import numpy as np
