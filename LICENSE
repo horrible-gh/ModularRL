@@ -19,3 +19,28 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+
+- Used Libraries:
+
+1. NumPy
+
+License: BSD License
+Source: https://numpy.org/
+
+2. PyTorch
+
+License: BSD License
+Source: https://pytorch.org/
+
+3. TensorFlow
+
+License: Apache License 2.0
+Source: https://www.tensorflow.org/
+
+4. Gym
+
+License: MIT License
+Source: https://gym.openai.com/
+
+For detailed information about the licenses and sources of each library, please refer to their respective documentation.
