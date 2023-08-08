@@ -112,14 +112,33 @@ class TensorFlowAgentPPO(Agent):
         return action, reward, is_done, timestep
 
     def update(self):
-        # convert lists to tensors
-        states_tensor = tf.convert_to_tensor(self.states, dtype=tf.float32)
-        actions_tensor = tf.convert_to_tensor(self.actions, dtype=tf.int32)
-        rewards_tensor = tf.convert_to_tensor(self.rewards, dtype=tf.float32)
-        next_states_tensor = tf.convert_to_tensor(
-            self.next_states, dtype=tf.float32)
-        done_tensor = tf.convert_to_tensor(self.dones, dtype=tf.float32)
+        Logger.verb("Shape of self.next_states:",   len(self.next_states))
+        Logger.verb("Shape of self.states:",        len(self.states))
+        Logger.verb("Shape of self.actions:",       len(self.actions))
+        Logger.verb("Shape of self.rewards:",       len(self.rewards))
+        Logger.verb("Shape of self.dones:",         len(self.dones))
+
+        for i, log_prob in enumerate(self.log_probs):
+            Logger.verb(f"Shape of log_probs[{i}]:", tf.shape(log_prob))
+
+        # Ensure all tensors in self.next_states have the same shape
+        self.next_states = [tf.squeeze(state) if len(
+            state.shape) == 2 and state.shape[0] == 1 else state for state in self.next_states]
+
+        # Convert lists to tensors
+        states_tensor = tf.stack(self.states)
+        actions_tensor = tf.stack(self.actions)
+        rewards_tensor = tf.stack(self.rewards)
+        next_states_tensor = tf.stack(self.next_states)
+        done_tensor = tf.stack(self.dones)
         log_probs_tensor = tf.stack(self.log_probs)
+
+        # Adjusting dtype after stacking
+        states_tensor = tf.cast(states_tensor, dtype=tf.float32)
+        actions_tensor = tf.cast(actions_tensor, dtype=tf.int32)
+        rewards_tensor = tf.cast(rewards_tensor, dtype=tf.float32)
+        next_states_tensor = tf.cast(next_states_tensor, dtype=tf.float32)
+        done_tensor = tf.cast(done_tensor, dtype=tf.float32)
 
         values = self.value_net(states_tensor).numpy().squeeze(1)
         next_values = self.value_net(next_states_tensor).numpy().squeeze(1)
