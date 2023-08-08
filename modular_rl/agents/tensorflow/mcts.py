@@ -57,6 +57,7 @@ class TensorFlowAgentMCTS(Agent):
         self.reward = None
         self.done = None
         self.total_reward = 0
+        self.total_value = 0
 
     def select_action(self, state):
         """
@@ -110,6 +111,7 @@ class TensorFlowAgentMCTS(Agent):
         self.done = self.reward != 0
 
         self.total_reward += self.reward
+        self.total_value = self.total_reward
 
         return self.state, self.action, self.reward, self.done
 

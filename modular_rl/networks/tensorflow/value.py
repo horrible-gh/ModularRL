@@ -1,5 +1,6 @@
 import tensorflow as tf
 from tensorflow.keras import layers
+from LogAssist.log import Logger
 
 
 class ValueNetwork(tf.keras.Model):
@@ -20,7 +21,7 @@ class ValueNetwork(tf.keras.Model):
         for i in range(num_layers):
             if i == 0:
                 self.layers_list.append(layers.Dense(
-                    hidden_dim, activation='relu'))
+                    hidden_dim, activation='relu', input_shape=(input_dim,)))
             elif i == num_layers - 1:
                 self.layers_list.append(layers.Dense(1))
             else:
@@ -28,7 +29,9 @@ class ValueNetwork(tf.keras.Model):
                     hidden_dim * (i + 1), activation='relu'))
 
     def call(self, inputs):
+        Logger.verb("Inputs shape:", tf.shape(inputs))
         x = inputs
         for layer in self.layers_list:
             x = layer(x)
+        Logger.verb("Output shape:", tf.shape(x))
         return x

@@ -175,36 +175,6 @@ class CommonAgents:
         self.episode += 1
         self.episode_reward = 0
 
-    def convert_float_to_double(self, input_tensor):
-        """
-        Convert the input tensor from float32 to double precision if necessary.
-
-        :param input_tensor: The input tensor to be converted.
-        :type input_tensor: torch.Tensor
-        :return: The converted tensor.
-        :rtype: torch.Tensor
-        """
-
-        if input_tensor.dtype == torch.float32:
-            return input_tensor.double()
-        else:
-            return input_tensor
-
-    def ensure_float(self, input_tensor):
-        """
-        Ensure that the input tensor is of float precision by converting it from float64 if necessary.
-
-        :param input_tensor: The input tensor to be converted.
-        :type input_tensor: torch.Tensor
-        :return: The converted tensor.
-        :rtype: torch.Tensor
-        """
-
-        if input_tensor.dtype == torch.float64:
-            return input_tensor.float()
-        else:
-            return input_tensor
-
     def update(self):
         '''
         This function is a placeholder and must be implemented by the child class that extends this Agent class.

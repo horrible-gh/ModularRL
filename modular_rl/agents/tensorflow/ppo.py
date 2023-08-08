@@ -75,7 +75,11 @@ class TensorFlowAgentPPO(Agent):
 
     def select_action(self, state):
         state = self._check_state(self.state)
+        Logger.verb("Checked state shape1:", tf.shape(state))
+
         state_tensor = tf.convert_to_tensor(state, dtype=tf.float32)
+        Logger.verb("Checked state shape2:", tf.shape(state_tensor))
+
         action_probs = self.policy_net(state_tensor)
         dist = tfp.distributions.Categorical(probs=action_probs)
         self.dist = dist
@@ -87,6 +91,7 @@ class TensorFlowAgentPPO(Agent):
         return self.update_step(state, dist, action, timestep)
 
     def update_step(self, state, dist, action, timestep, auto_step=True, is_done=False, reward=0, next_state=None):
+        Logger.verb("input states before:", tf.shape(state))
         if dist is None and self.dist:
             dist = self.dist
         if auto_step:
@@ -95,8 +100,13 @@ class TensorFlowAgentPPO(Agent):
         else:
             if next_state is None:
                 next_state = state
+
+        Logger.verb("input states after:", tf.shape(state))
+
         self.update_reward(reward)
         state = self._check_state(state)
+        next_state = self._check_state(next_state)
+
         # Note: we use Python lists here, as TensorFlow has a better support for Pythonic operations
         self.states.append(state)
         self.actions.append(action)
@@ -112,14 +122,39 @@ class TensorFlowAgentPPO(Agent):
         return action, reward, is_done, timestep
 
     def update(self):
-        # convert lists to tensors
-        states_tensor = tf.convert_to_tensor(self.states, dtype=tf.float32)
-        actions_tensor = tf.convert_to_tensor(self.actions, dtype=tf.int32)
-        rewards_tensor = tf.convert_to_tensor(self.rewards, dtype=tf.float32)
-        next_states_tensor = tf.convert_to_tensor(
-            self.next_states, dtype=tf.float32)
-        done_tensor = tf.convert_to_tensor(self.dones, dtype=tf.float32)
+        Logger.verb("Shape of self.next_states:",   len(self.next_states))
+        Logger.verb("Shape of self.states:",        len(self.states))
+        Logger.verb("Shape of self.actions:",       len(self.actions))
+        Logger.verb("Shape of self.rewards:",       len(self.rewards))
+        Logger.verb("Shape of self.dones:",         len(self.dones))
+
+        for i, log_prob in enumerate(self.log_probs):
+            Logger.verb(f"Shape of log_probs[{i}]:", tf.shape(log_prob))
+
+        # Ensure all tensors in self.next_states have the same shape
+        self.next_states = tf.squeeze(self.next_states, axis=1)
+        self.states = tf.squeeze(self.states, axis=1)
+
+        # Convert lists to tensors
+        states_tensor = tf.stack(self.states)
+        actions_tensor = tf.stack(self.actions)
+        rewards_tensor = tf.stack(self.rewards)
+        next_states_tensor = tf.stack(self.next_states)
+        done_tensor = tf.stack(self.dones)
         log_probs_tensor = tf.stack(self.log_probs)
+
+        # Adjusting dtype after stacking
+        states_tensor = tf.cast(states_tensor, dtype=tf.float32)
+        actions_tensor = tf.cast(actions_tensor, dtype=tf.int32)
+        rewards_tensor = tf.cast(rewards_tensor, dtype=tf.float32)
+        next_states_tensor = tf.cast(next_states_tensor, dtype=tf.float32)
+        done_tensor = tf.cast(done_tensor, dtype=tf.float32)
+
+        Logger.verb("Shape of states_tensor:", states_tensor.shape)
+        Logger.verb("Shape of actions_tensor:", actions_tensor.shape)
+        Logger.verb("Shape of rewards_tensor:", rewards_tensor.shape)
+        Logger.verb("Shape of next_states_tensor:", next_states_tensor.shape)
+        Logger.verb("Shape of done_tensor:", done_tensor.shape)
 
         values = self.value_net(states_tensor).numpy().squeeze(1)
         next_values = self.value_net(next_states_tensor).numpy().squeeze(1)

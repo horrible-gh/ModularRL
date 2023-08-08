@@ -131,8 +131,8 @@ class Agent(CommonAgents):
         :type file_name: str
         """
 
-        self.policy_net.save(file_name + '_policy.h5')
-        self.value_net.save(file_name + '_value.h5')
+        self.policy_net.save(file_name + '_policy', save_format='tf')
+        self.value_net.save(file_name + '_value', save_format='tf')
 
     def load_policy_value(self, file_name):
         """
@@ -142,8 +142,8 @@ class Agent(CommonAgents):
         :type file_name: str
         """
 
-        self.policy_net = load_model(file_name + '_policy.h5')
-        self.value_net = load_model(file_name + '_value.h5')
+        self.policy_net = load_model(file_name + '_policy')
+        self.value_net = load_model(file_name + '_value')
 
     def save_actor_critic(self, file_name):
         """
@@ -153,7 +153,8 @@ class Agent(CommonAgents):
         :type file_name: str
         """
 
-        self.actor_critic_net.save(file_name + '_actor_critic.h5')
+        self.actor_critic_net.save(
+            file_name + '_actor_critic', save_format='tf')
 
     def load_actor_critic(self, file_name):
         """
@@ -163,4 +164,4 @@ class Agent(CommonAgents):
         :type file_name: str
         """
 
-        self.actor_critic_net = load_model(file_name + '_actor_critic.h5')
+        self.actor_critic_net = load_model(file_name + '_actor_critic')
