@@ -1,6 +1,6 @@
 gym==0.26.2
-numpy==1.24.2
-torch==2.0.0
+numpy>=1.22,<1.24
+torch==2.0.1
 LogAssist==1.0.7
-tensorflow==
+tensorflow==2.13.0
 tensorflow_probability==0.20.1

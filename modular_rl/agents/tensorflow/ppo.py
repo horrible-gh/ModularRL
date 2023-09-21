@@ -74,7 +74,7 @@ class TensorFlowAgentPPO(Agent):
         return advantages
 
     def select_action(self, state):
-        state = self._check_state(self.state)
+        state = self._check_state(state)
         Logger.verb("Checked state shape1:", tf.shape(state))
 
         state_tensor = tf.convert_to_tensor(state, dtype=tf.float32)
